@@ -1,51 +1,30 @@
-import datetime
+import datetime as dt
 import time
 from enum import Enum
-from typing import Dict, List, NamedTuple
-
+from typing import List, Union, Dict, Tuple
+import re
+import numpy as np
+import pandas as pd
 import requests
 from bs4 import BeautifulSoup
 
-headers = {
+BASE = "https://www.hltv.org"
+TIMEOUT = 2
+HEADERS = {
     "Accept":
-    "*/*",
+        "*/*",
     "User-agent":
-    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/103.0.0.0 "
-    "Safari/537.36"
+        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/103.0.0.0 "
+        "Safari/537.36"
 }
 
+def set_timeout(timeout: float):
+    """ Controls the frequency of calling parsing functions. """
 
-class EventFilter(Enum):
-    """ Tournaments filter for tier differentiating. """
-    ALL = "ALL"
-    LAN = "Lan"
-    BIG = "BigEvents"
-    MAJORS = "Majors"
-
-
-class RankFilter(Enum):
-    """ Ranking filter for stats differentiating. """
-    TOP5 = 1
-    TOP10 = 2
-    TOP20 = 3
-    TOP30 = 4
-
-
-class Event(NamedTuple):
-    name: str
-    rank: float
-    prize: int
-    duration: int
-    isLan: bool
-    players: Dict[str, str]
-
-
-def set_timeout(timeout):
-
-    def deco(f):
+    def decorator(f):
         last_call = 0
 
-        def inner(*args, **kwargs):
+        def handler(*args, **kwargs):
             nonlocal last_call
             delta = time.time() - last_call
             if delta < timeout:
@@ -53,103 +32,244 @@ def set_timeout(timeout):
             last_call = time.time()
             return f(*args, **kwargs)
 
-        return inner
+        return handler
 
-    return deco
-
-
-@set_timeout(0.5)
-def get_tournaments(pl_id: str, pl_name: str, start: datetime.date,
-                    end: datetime.date, efilter: EventFilter) -> List[str]:
-    """
-    Takes player's ID and nickname, start and end date as datetime, and the TFilter -- the filter for tournaments.
-    Returns the list of semi-links with the player's stats on a certain tournament.
-
-    """
-    assert (start <= end <=
-            datetime.date.today()), "Wrong start or end parameters passed."
-    start = start.strftime("%Y-%m-%d")
-    end = end.strftime("%Y-%m-%d")
-    url = f"https://www.hltv.org/stats/players/events/{pl_id}/{pl_name}?startDate={start}&endDate={end}&matchType={efilter.value}"
-    tournaments_page = requests.get(url, headers=headers).text
-    parser = BeautifulSoup(tournaments_page, "lxml")
-    processed = set()
-    tournaments = []
-    for block in parser.find("table", class_="stats-table").find_all(
-            "img", class_="eventLogo"):
-        tourney = block.find_next_sibling("a").get("href")
-        if tourney not in processed:
-            processed.add(tourney)
-            tournaments.append(tourney)
-    return tournaments
+    return decorator
 
 
-@set_timeout(0.5)
-def get_event_info(event_url: str) -> Event:
-    """
-    Parses the given tournament URL extracting the basic information.
+class EventFilter(Enum):
+    """ Filter for tournaments tier differentiating. """
 
-    :returns: an Event object containing basic parameters
-    """
+    ALL = "ALL"
+    LAN = "Lan"
+    BIG = "BigEvents"
+    MAJORS = "Majors"
 
-    def __players(source: BeautifulSoup) -> Dict[str, str]:
-        """ :returns: a dictionary of players' ID and nicknames """
 
-        players = dict()
-        for team_box in source.find_all("div", class_="lineup-box hidden"):
-            for pl_link in team_box.find_all("a"):
-                items = pl_link.get("href").split("/")
-                players[items[-2]] = items[-1].lower()
-        return players
+class FantasyError(Enum):
+    INVALID_TIME = ValueError("Wrong time period passed.")
+    INVALID_EVENT = ValueError("Wrong event key provided. Crashed in Event init.")
+    NO_DATA = ValueError("No data found. Crashed in calc_pts().")
+    INVALID_ARGUMENTS = ValueError("Wrong number or type of arguments passed.")
 
-    def __rank(source: BeautifulSoup) -> float:
-        """ :returns: an average rank of tournament participant """
+class Player:
 
-        ranks = source.find_all("div", class_="event-world-rank")
-        return 0 if not ranks else sum(int(rank.text[1:])
-                                       for rank in ranks) / len(ranks)
+    def __init__(self, key: int, name: str):
+        self.key = key
+        self.name = name
 
-    def __prize(table) -> int:
-        """ :returns: an amount of the prize pool or 0 if not a number """
+    def __eq__(self, other):
+        if isinstance(other, Player):
+            return self.key == other.key
+        return False
 
-        if "$" not in table[3].text:
-            return 0
-        return int(table[3].text[1:].replace(",", ""))
+    def events_link(self, start: str, end: str) -> str:
+        """ :returns: a link to the page with filtered events """
 
-    def __duration(table) -> int:
-        """ :returns: a number of days the event lasts """
+        return f"{BASE}/stats/players/events/{self.key}/{self.name}?startDate={start}&endDate={end}"
 
-        months = {
-            "Jan": 1,
-            "Feb": 2,
-            "Mar": 3,
-            "Apr": 4,
-            "May": 5,
-            "Jun": 6,
-            "Jul": 7,
-            "Aug": 8,
-            "Sep": 9,
-            "Oct": 10,
-            "Nov": 11,
-            "Dec": 12
+    def stats_link(self, start: str, end: str, fil: EventFilter) -> str:
+        """
+        Takes time period and EventFilter.
+        :returns: a link to the page with matches history
+         """
+        return f"{BASE}/stats/players/matches/{self.key}/{self.name}?startDate={start}&endDate={end}" \
+               f"&matchType={fil.value}&rankingFilter=Top50"
+
+    def matches_link(self, event_key: int) -> str:
+        """ :returns: a link to the player's matches at a provided event"""
+
+        return f"{BASE}/stats/players/matches/{self.key}/{self.name}?event={event_key}&rankingFilter=Top50"
+
+    @set_timeout(TIMEOUT)
+    def get_events(self, start: dt.date, end: dt.date) -> List[int]:
+        """
+        Iterates through the events player played at within the provided time period and filter.
+        :returns: list of events keys
+        """
+
+        if not (start <= end <= dt.date.today()):
+            raise FantasyError.INVALID_TIME.value
+
+        _url = self.events_link(start.strftime('%Y-%m-%d'), end.strftime('%Y-%m-%d'))
+        _src = BeautifulSoup(requests.get(_url, headers=HEADERS).text, "lxml")
+        _events = []
+        if _src.find("table", class_="stats-table") is not None:
+            for block in _src.find("table", class_="stats-table").find_all("img", class_="eventLogo"):
+                _event = int(block.find_next_sibling("a").get("href").split("=")[-1])
+                if _event != 1040:
+                    _events.append(int(block.find_next_sibling("a").get("href").split("=")[-1]))
+        return list(set(_events))
+
+    @set_timeout(TIMEOUT)
+    def get_stats(self, start: dt.date, end: dt.date, fil: EventFilter) -> Tuple[float, float]:
+        """
+        Takes (time period, EventFilter).
+        :returns: rating
+        """
+
+        _url = self.stats_link(start.strftime('%Y-%m-%d'), end.strftime('%Y-%m-%d'), fil)
+        _src = BeautifulSoup(requests.get(_url, headers=HEADERS).text, "lxml")
+        _stats = _src.find("div", class_="summary").find_all("div", class_="value")
+
+        if not bool(_stats[1].text[:-1]):
+            return 0, 0
+
+        return float(_stats[0].text), float(_stats[1].text[:-1])
+
+    @set_timeout(TIMEOUT)
+    def calc_pts(self, event_key: int) -> float:
+        """ :returns: an amount of points earned per map at a given event """
+
+        _url = self.matches_link(event_key)
+        _src = BeautifulSoup(requests.get(_url, headers=HEADERS).text, "lxml")
+        _ind_pts, _team_pts = 0, 0
+        _maps = _src.find("table", class_="stats-table no-sort")
+        if _maps is None or len(_maps.find("tbody").find_all("tr")) == 0:
+            raise FantasyError.NO_DATA.value
+
+        _stats = _maps.find("tbody").find_all("tr")
+        for _map in _stats:
+            _rating = float(_map.find(class_=re.compile("rating")).text)
+            _ind_pts += int(((_rating - 1) * 100)) // 2
+
+        _matches = _maps.find("tbody").find_all("tr", class_=re.compile("first"))
+        for _match in _matches:
+            _team_pts += 6 if bool(_match.find(class_=re.compile("match-won"))) else -3
+
+        return round(_ind_pts + _team_pts, 3)
+
+    @set_timeout(TIMEOUT)
+    def get_dataset(self, start: dt.date, end: dt.date, delta: dt.timedelta) -> Union[pd.DataFrame, None]:
+        """
+        Takes start and end date for parsing events as well as time delta for getting stats.
+        :returns: a dataframe of stats or nothing if no data found
+        """
+
+        _data = []
+        _cols = ["player", "event", "avg rank", "all events rating", "big events rating", "all events wr", "big events wr", "pts"]
+        _types = {
+            "player": np.str, "event": np.str, "avg rank": np.float32,
+            "all events rating": np.float32, "big events rating": np.float32,
+            "all events wr": np.float32, "big events wr": np.float32, "pts": np.float32
         }
-        items = table[0].text.split(" ")
-        start = datetime.date(int(items[2]), months[items[0]],
-                              int(items[1][:-2]))
-        items = table[1].text.split(" ")
-        end = datetime.date(int(items[2]), months[items[0]],
-                            int(items[1][:-2]))
-        return int(str(end - start).split(" ")[0])
 
-    def __isLan(table) -> bool:
-        return "Online" not in table[4].text
+        print(f"TESTING: {self.name}")
+        _events = self.get_events(start, end)
 
-    parser = BeautifulSoup(
-        requests.get(event_url, headers=headers).text, "lxml")
-    info_table = parser.find("table", class_="table eventMeta").find_all("td")
-    return Event(name=event_url.split("/")[-1],
-                 rank=__rank(parser),
-                 prize=__prize(info_table),
-                 duration=__duration(info_table),
-                 isLan=__isLan(info_table),
-                 players=__players(parser))
+        if _events is None:
+            print(f"EVENTS NOT FOUND --> {self.name}")
+            return None
+
+        for _key in _events:
+            print(f"GETTING: {self.name} --> {_key}")
+            try:
+                _event = Event(_key)
+
+                if _event.rank > 45:
+                    continue
+
+                _pts = self.calc_pts(_key)
+                _all_rating, _all_wr = self.get_stats(_event.start - delta, _event.start - dt.timedelta(1), EventFilter.ALL)
+                _big_rating, _big_wr = self.get_stats(_event.start - delta, _event.start - dt.timedelta(1), EventFilter.BIG)
+
+                _ev_data = np.array([_event.name, _event.rank])
+                print(f"rating: {_all_rating} / {_big_rating} wr: {_all_wr} / {_big_wr}")
+                _data.append(np.array([self.name, _event.name, _event.rank, _all_rating, _big_rating, _all_wr, _big_wr, _pts]))
+
+            except Exception as ex:
+                print(f"FAILED: {str(ex)}")
+                continue
+
+        print(f"TOTAL EVENTS: {len(_events)}")
+        print(f"OK: {len(_data)}")
+        print(f"FAILED: {len(_events) - len(_data)}")
+        return pd.DataFrame(_data, columns=_cols).astype(_types)
+
+
+class Event:
+
+    @set_timeout(TIMEOUT)
+    def __init__(self, key: int):
+
+        self.key = key
+
+        def _name(source: BeautifulSoup) -> str:
+            return source.find("h1", class_="event-hub-title").text
+
+        def _rank(source: BeautifulSoup) -> float:
+            _ranks = source.find_all("div", class_="event-world-rank")
+            return 0 if not _ranks else sum(
+                int(rank.text[1:]) for rank in _ranks) / len(_ranks)
+
+        def _dates(table) -> Tuple[dt.date, dt.date]:
+            _months = {
+                "Jan": 1,
+                "Feb": 2,
+                "Mar": 3,
+                "Apr": 4,
+                "May": 5,
+                "Jun": 6,
+                "Jul": 7,
+                "Aug": 8,
+                "Sep": 9,
+                "Oct": 10,
+                "Nov": 11,
+                "Dec": 12
+            }
+            _items = table[0].text.split(" ")
+            _start = dt.date(int(_items[2]), _months[_items[0]],
+                             int(_items[1][:-2]))
+            _items = table[1].text.split(" ")
+            _end = dt.date(int(_items[2]), _months[_items[0]],
+                           int(_items[1][:-2]))
+            return _start, _end
+
+        _src = BeautifulSoup(requests.get(self.event_info_link(), headers=HEADERS).text, "lxml")
+        _table = _src.find("table", class_="table eventMeta")
+
+        if _table is None or len(_table.find_all("td")) != 5:
+            raise FantasyError.INVALID_EVENT.value
+
+        _table = _table.find_all("td")
+        self.name = _name(_src)
+        self.rank = round(_rank(_src), 3)
+        self.start, self.end = _dates(_table)
+
+    def __eq__(self, other):
+        if isinstance(other, Event):
+            return self.key == other.key
+        return False
+
+    def event_info_link(self) -> str:
+        """ :returns: a link to the event page """
+
+        return f"https://www.hltv.org/events/{self.key}/event"
+
+    @set_timeout(TIMEOUT)
+    def get_players(self) -> List[Player]:
+        """ :returns: a list of Player objects """
+
+        src = BeautifulSoup(requests.get(self.event_info_link(), headers=HEADERS).text, "lxml")
+        _result = []
+        for team_box in src.find_all("div", class_="lineup-box hidden"):
+            for pl_link in team_box.find_all("a"):
+                _items = pl_link.get("href").split("/")
+                _result.append(
+                    Player(key=int(_items[-2]), name=_items[-1].lower()))
+        return _result
+
+    @set_timeout(TIMEOUT)
+    def get_costs(self, file_name: str) -> Dict[str, int]:
+        with open(file_name, "r") as file:
+            _src = BeautifulSoup(file.read(), "lxml")
+        _costs = dict()
+        try:
+            for box in _src.find_all("div", "teamPlayer"):
+                _name = box.find("div", class_="player-card-container").text.lower()
+                _cost = int(box.find("div", class_="playerButtonText").text.split(",")[0][1:])
+                _costs[_name] = _cost
+        except Exception as ex:
+            print(f"FAILED: {str(ex)}")
+            return {}
+        return _costs
