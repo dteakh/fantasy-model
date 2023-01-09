@@ -8,10 +8,10 @@ from bs4 import BeautifulSoup
 
 headers = {
     "Accept":
-    "*/*",
+        "*/*",
     "User-agent":
-    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/103.0.0.0 "
-    "Safari/537.36"
+        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/103.0.0.0 "
+        "Safari/537.36"
 }
 
 
@@ -79,6 +79,11 @@ class Player:
         self.key = key
         self.name = name
 
+    def __eq__(self, other):
+        if isinstance(other, Player):
+            return self.key == other.key
+        return False
+
     def player_events_link(self, start: str, end: str,
                            fil: EventFilter) -> str:
         """ :returns: a link to the page with filtered events """
@@ -93,49 +98,39 @@ class Player:
 
     @set_timeout(0.5)
     def get_events(self, start: dt.date, end: dt.date,
-                   fil: EventFilter) -> List["Event"]:
+                   fil: EventFilter) -> List[int]:
         """
         Iterates through the events player played at within the provided time period and filter.
-        :returns: list of Event objects
+        :returns: list of Event keys
         """
 
         if not (start <= end <= dt.date.today()):
             raise FantasyError.INVALID_TIME.value
 
-        __url = self.player_events_link(start.strftime('%Y-%m-%d'),
-                                        end.strftime('%Y-%m-%d'), fil)
-        __src = BeautifulSoup(
-            requests.get(__url, headers=headers).text, "lxml")
-        __events = set()
-        for block in __src.find("table", class_="stats-table").find_all(
-                "img", class_="eventLogo"):
-            __events.add(
-                Event(
-                    int(
-                        block.find_next_sibling("a").get("href").split("=")
-                        [-1])))
+        _url = self.player_events_link(start.strftime('%Y-%m-%d'), end.strftime('%Y-%m-%d'), fil)
+        _src = BeautifulSoup(requests.get(_url, headers=headers).text, "lxml")
+        _events = []
+        for block in _src.find("table", class_="stats-table").find_all("img", class_="eventLogo"):
+            _events.append(int(block.find_next_sibling("a").get("href").split("=")[-1]))
+        return list(set(_events))
 
-        return list(__events)
-
-    @set_timeout
+    @set_timeout(0.5)
     def get_event_stats(self, event: "Event",
                         fil: RankFilter) -> Union[ValueError, PlayerStats]:
         """ :returns: a PlayerStats object or error if no data found. """
 
-        __src = BeautifulSoup(
-            requests.get(self.player_stats_link(event, fil),
-                         headers=headers).text, "lxml")
-        __stats = __src.find_all("div", class_="summaryStatBreakdownDataValue")
+        _src = BeautifulSoup(requests.get(self.player_stats_link(event, fil), headers=headers).text, "lxml")
+        _stats = _src.find_all("div", class_="summaryStatBreakdownDataValue")
 
-        if float(__stats[0].text) == 0:
+        if float(_stats[0].text) == 0:
             return FantasyError.STATS_NOT_FOUND.value
 
-        return PlayerStats(rating=float(__stats[0].text),
-                           dpr=float(__stats[1].text),
-                           kast=float(__stats[2].text[:-1]),
-                           impact=float(__stats[3].text),
-                           adr=float(__stats[4].text),
-                           kpr=float(__stats[5].text))
+        return PlayerStats(rating=float(_stats[0].text),
+                           dpr=float(_stats[1].text),
+                           kast=float(_stats[2].text[:-1]),
+                           impact=float(_stats[3].text),
+                           adr=float(_stats[4].text),
+                           kpr=float(_stats[5].text))
 
 
 class Event:
@@ -145,21 +140,21 @@ class Event:
 
         self.key = key
 
-        def __rank(source: BeautifulSoup) -> float:
+        def _rank(source: BeautifulSoup) -> float:
 
-            __ranks = source.find_all("div", class_="event-world-rank")
-            return 0 if not __ranks else sum(
-                int(rank.text[1:]) for rank in __ranks) / len(__ranks)
+            _ranks = source.find_all("div", class_="event-world-rank")
+            return 0 if not _ranks else sum(
+                int(rank.text[1:]) for rank in _ranks) / len(_ranks)
 
-        def __prize(table) -> Union[ValueError, int]:
+        def _prize(table) -> Union[ValueError, int]:
 
             if "$" not in table[3].text:
                 return FantasyError.ANOTHER_PRIZE.value
             return int(table[3].text[1:].replace(",", ""))
 
-        def __duration(table) -> int:
+        def _duration(table) -> int:
 
-            __months = {
+            _months = {
                 "Jan": 1,
                 "Feb": 2,
                 "Mar": 3,
@@ -173,42 +168,50 @@ class Event:
                 "Nov": 11,
                 "Dec": 12
             }
-            __items = table[0].text.split(" ")
-            __start = dt.date(int(__items[2]), __months[__items[0]],
-                              int(__items[1][:-2]))
-            __items = table[1].text.split(" ")
-            __end = dt.date(int(__items[2]), __months[__items[0]],
-                            int(__items[1][:-2]))
-            return int(str(__end - __start).split(" ")[0])
+            _items = table[0].text.split(" ")
 
-        def __isLan(table) -> bool:
+            _start = dt.date(int(_items[2]), _months[_items[0]],
+                             int(_items[1][:-2]))
+            _items = table[1].text.split(" ")
+            _end = dt.date(int(_items[2]), _months[_items[0]],
+                           int(_items[1][:-2]))
+            return int(str(_end - _start).split(" ")[0])
+
+        def _isLan(table) -> bool:
             return "Online" not in table[4].text
 
-        __src = BeautifulSoup(
-            requests.get(self.event_info_link(), headers=headers).text, "lxml")
-        __table = __src.find("table", class_="table eventMeta")
-        if __table is None:
+        _src = BeautifulSoup(requests.get(self.event_info_link(), headers=headers).text, "lxml")
+        _table = _src.find("table", class_="table eventMeta")
+        if _table is None or len(_table.find_all("td")) != 5:
             raise FantasyError.WRONG_EVENT_KEY.value
-        __table = __table.find_all("td")
 
-        self.rank = round(__rank(__src), 3)
-        self.prize = __prize(__table)
-        self.duration = __duration(__table)
-        self.isLan = __isLan(__table)
+        _table = _table.find_all("td")
+        self.rank = round(_rank(_src), 3)
+        self.prize = _prize(_table)
+        self.duration = _duration(_table)
+        self.isLan = _isLan(_table)
+
+    def __eq__(self, other):
+        if isinstance(other, Event):
+            return self.key == other.key
+        return False
+
+    def __hash__(self):
+        return self.key
 
     def event_info_link(self) -> str:
+        """ :returns: a link to the event page """
         return f"https://www.hltv.org/events/{self.key}/event"
 
     @set_timeout(0.5)
     def get_players(self) -> List[Player]:
         """ :returns: a list of Player objects """
 
-        __src = BeautifulSoup(
-            requests.get(self.event_info_link(), headers=headers).text, "lxml")
-        __result = []
-        for team_box in __src.find_all("div", class_="lineup-box hidden"):
+        src = BeautifulSoup(requests.get(self.event_info_link(), headers=headers).text, "lxml")
+        _result = []
+        for team_box in src.find_all("div", class_="lineup-box hidden"):
             for pl_link in team_box.find_all("a"):
-                __items = pl_link.get("href").split("/")
-                __result.append(
-                    Player(key=int(__items[-2]), name=__items[-1].lower()))
-        return __result
+                _items = pl_link.get("href").split("/")
+                _result.append(
+                    Player(key=int(_items[-2]), name=_items[-1].lower()))
+        return _result
