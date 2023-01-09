@@ -1,7 +1,10 @@
 import datetime as dt
 import time
 from enum import Enum
-from typing import List, NamedTuple, Union, Type
+from typing import List, NamedTuple, Union
+
+import numpy as np
+import pandas as pd
 
 import requests
 from bs4 import BeautifulSoup
@@ -69,7 +72,7 @@ class FantasyError(Enum):
         "Wrong time period passed. Make sure end date is no earlier than start date and not "
         "later than today.")
     WRONG_EVENT_KEY = ValueError("Wrong event key provided.")
-    ANOTHER_PRIZE = ValueError("The prize is not money.")
+    ANOTHER_PRIZE = ValueError("Not money")
     STATS_NOT_FOUND = ValueError("No data for the provided event and filter.")
 
 
@@ -116,21 +119,36 @@ class Player:
 
     @set_timeout(0.5)
     def get_event_stats(self, event: "Event",
-                        fil: RankFilter) -> Union[ValueError, PlayerStats]:
-        """ :returns: a PlayerStats object or error if no data found. """
+                        fil: RankFilter) -> np.ndarray:
+        """ :returns: a vector: (rating, dpr, kast, impact, adr, kpr) """
 
         _src = BeautifulSoup(requests.get(self.player_stats_link(event, fil), headers=headers).text, "lxml")
         _stats = _src.find_all("div", class_="summaryStatBreakdownDataValue")
 
         if float(_stats[0].text) == 0:
-            return FantasyError.STATS_NOT_FOUND.value
+            raise FantasyError.STATS_NOT_FOUND.value
+        return np.array([
+            float(_stats[0].text),
+            float(_stats[1].text),
+            float(_stats[2].text[:-1]),
+            float(_stats[3].text),
+            float(_stats[4].text),
+            float(_stats[5].text)])
 
-        return PlayerStats(rating=float(_stats[0].text),
-                           dpr=float(_stats[1].text),
-                           kast=float(_stats[2].text[:-1]),
-                           impact=float(_stats[3].text),
-                           adr=float(_stats[4].text),
-                           kpr=float(_stats[5].text))
+    @set_timeout(0.5)
+    def get_stats_dataframe(self, start: dt.date, end: dt.date, fil: EventFilter) -> pd.DataFrame:
+        _events = self.get_events(start, end, fil)
+        _data = []
+        _cols = ["player", "player_id", "event_id", "avg rank", "prize", "days", "host", "rating", "dpr", "kast", "impact", "adr", "kpr"]
+        for _key in _events:
+            try:
+                _ev = Event(_key)
+                _event_data = [self.name, self.key, _ev.key, _ev.rank, _ev.prize, _ev.duration, "LAN" if _ev.isLan else "Online"]
+                _stats_data = self.get_event_stats(_ev, RankFilter.ALL)
+                _data.append(np.concatenate((_event_data, _stats_data), axis=0))
+            except ValueError:
+                continue
+        return pd.DataFrame(_data, columns=_cols)
 
 
 class Event:
@@ -195,9 +213,6 @@ class Event:
         if isinstance(other, Event):
             return self.key == other.key
         return False
-
-    def __hash__(self):
-        return self.key
 
     def event_info_link(self) -> str:
         """ :returns: a link to the event page """
