@@ -1,6 +1,6 @@
 import unittest
 import datetime as dt
-from fantasy import get_event_info, get_tournaments, EventFilter, RankFilter, Event
+from fantasy import get_event_info, get_events_links, get_stats, EventFilter, OpponentFilter, Event
 
 # Tests for 08-01-2023.
 
@@ -33,28 +33,65 @@ class TestFantasy(unittest.TestCase):
         self.assertEqual(t5.players["21708"], "npl")
         self.assertRaises(KeyError, t5.players.__getitem__, "12731")
 
-    def test_tournaments_filters(self):
+    def test_events_filters(self):
         players = get_event_info(
             "https://www.hltv.org/events/6970/blast-premier-spring-groups-2023"
         ).players
-        t1 = get_tournaments("13915", players["13915"], dt.date(2022, 8, 30),
-                             dt.date.today(), EventFilter.ALL)
+        t1 = get_events_links("13915", players["13915"], dt.date(2022, 8, 30),
+                              dt.date.today(), EventFilter.ALL)
         self.assertEqual(len(t1), 6)
-        t2 = get_tournaments("13915", players["13915"], dt.date(2022, 8, 30),
-                             dt.date.today(), EventFilter.LAN)
+        t2 = get_events_links("13915", players["13915"], dt.date(2022, 8, 30),
+                              dt.date.today(), EventFilter.LAN)
         self.assertEqual(len(t2), 5)
-        t3 = get_tournaments("13915", players["13915"], dt.date(2022, 8, 30),
-                             dt.date.today(), EventFilter.BIG)
+        t3 = get_events_links("13915", players["13915"], dt.date(2022, 8, 30),
+                              dt.date.today(), EventFilter.BIG)
         self.assertEqual(len(t3), 4)
-        t4 = get_tournaments("13915", players["13915"], dt.date(2022, 8, 30),
-                             dt.date.today(), EventFilter.MAJORS)
+        t4 = get_events_links("13915", players["13915"], dt.date(2022, 8, 30),
+                              dt.date.today(), EventFilter.MAJORS)
         self.assertEqual(len(t4), 1)
-        t5 = get_tournaments("8520", players["8520"], dt.date(2022, 3, 10),
-                             dt.date.today(), EventFilter.ALL)
+        t5 = get_events_links("8520", players["8520"], dt.date(2022, 3, 10),
+                              dt.date.today(), EventFilter.ALL)
         self.assertEqual(len(t5), 15)
-        t6 = get_tournaments("8520", players["8520"], dt.date(2022, 3, 10),
-                             dt.date(2022, 11, 4), EventFilter.ALL)
+        t6 = get_events_links("8520", players["8520"], dt.date(2022, 3, 10),
+                              dt.date(2022, 11, 4), EventFilter.ALL)
         self.assertEqual(len(t6), 12)
-        t7 = get_tournaments("7998", players["7998"], dt.date.today(),
-                             dt.date.today(), EventFilter.LAN)
+        t7 = get_events_links("7998", players["7998"], dt.date.today(),
+                              dt.date.today(), EventFilter.LAN)
         self.assertEqual(len(t7), 0)
+
+    def test_get_stats(self):
+        plrs = get_event_info(
+            "https://www.hltv.org/events/5728/dreamhack-masters-spring-2021"
+        ).players
+        pl_id = "16920"
+        events = get_events_links(pl_id, plrs[pl_id], dt.date(2022, 1, 9),
+                                  dt.date.today(), EventFilter.ALL)
+        event = events[0].split('=')[-1]
+        st = get_stats(pl_id, plrs[pl_id], event, OpponentFilter.ALL)
+        self.assertEqual(st.rating, 1.35)
+        self.assertEqual(st.adr, 81.2)
+        event = events[1].split('=')[-1]
+        st = get_stats(pl_id, plrs[pl_id], event, OpponentFilter.TOP10)
+        self.assertEqual(st.impact, 1.87)
+        self.assertEqual(st.dpr, 0.53)
+        event = events[-1].split('=')[-1]
+        st = get_stats(pl_id, plrs[pl_id], event, OpponentFilter.TOP5)
+        self.assertEqual(st, ValueError)
+        pl_id = "17306"
+        events = get_events_links(pl_id, plrs[pl_id], dt.date(2022, 7, 9),
+                                  dt.date.today(), EventFilter.BIG)
+        event = events[0].split('=')[-1]
+        st = get_stats(pl_id, plrs[pl_id], event, OpponentFilter.TOP20)
+        self.assertEqual(st.rating, 1.19)
+        self.assertEqual(st.adr, 71.0)
+        st = get_stats(pl_id, plrs[pl_id], event, OpponentFilter.TOP10)
+        self.assertEqual(st, ValueError)
+        pl_id = "15369"
+        events = get_events_links(pl_id, plrs[pl_id], dt.date(2022, 10, 9),
+                                  dt.date.today(), EventFilter.ALL)
+        event = events[-1].split('=')[-1]
+        st = get_stats(pl_id, plrs[pl_id], event, OpponentFilter.TOP30)
+        self.assertEqual(st, ValueError)
+        st = get_stats(pl_id, plrs[pl_id], event, OpponentFilter.ALL)
+        self.assertEqual(st.rating, 0.99)
+        self.assertEqual(st.impact, 0.76)
