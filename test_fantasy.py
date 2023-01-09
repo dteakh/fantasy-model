@@ -2,7 +2,7 @@ import unittest
 import datetime as dt
 from fantasy import Event, Player, FantasyError, PlayerStats, EventFilter, RankFilter
 
-# Tests for 09-01-2023.
+# Tests for 10-01-2023.
 
 
 class TestFantasy(unittest.TestCase):
@@ -47,20 +47,20 @@ class TestFantasy(unittest.TestCase):
     def test_get_stats(self):
         players = Event(5728).get_players()
         st = players[3].get_event_stats(Event(6586), RankFilter.ALL)
-        self.assertEqual(st.rating, 1.35)
-        self.assertEqual(st.adr, 81.2)
+        self.assertEqual(st[0], 1.35)
+        self.assertEqual(st[-2], 81.2)
         st = players[3].get_event_stats(Event(6588), RankFilter.TOP10)
-        self.assertEqual(st.impact, 1.87)
-        self.assertEqual(st.dpr, 0.53)
-        st = players[3].get_event_stats(Event(6334), RankFilter.TOP5)
-        self.assertEqual(type(st), ValueError)
+        self.assertEqual(st[3], 1.87)
+        self.assertEqual(st[1], 0.53)
+        with self.assertRaises(ValueError):
+            players[3].get_event_stats(Event(6334), RankFilter.TOP5)
         st = players[48].get_event_stats(Event(6349), RankFilter.TOP20)
-        self.assertEqual(st.rating, 1.19)
-        self.assertEqual(st.adr, 71.0)
-        st = players[48].get_event_stats(Event(6349), RankFilter.TOP10)
-        self.assertEqual(type(st), ValueError)
-        st = players[79].get_event_stats(Event(6828), RankFilter.TOP30)
-        self.assertEqual(type(st), ValueError)
+        self.assertEqual(st[0], 1.19)
+        self.assertEqual(st[-2], 71.0)
+        with self.assertRaises(ValueError):
+            players[48].get_event_stats(Event(6349), RankFilter.TOP10)
+        with self.assertRaises(ValueError):
+            players[79].get_event_stats(Event(6828), RankFilter.TOP30)
         st = players[79].get_event_stats(Event(6828), RankFilter.ALL)
-        self.assertEqual(st.rating, 0.99)
-        self.assertEqual(st.impact, 0.76)
+        self.assertEqual(st[0], 0.99)
+        self.assertEqual(st[3], 0.76)
