@@ -1,7 +1,7 @@
 import datetime as dt
 import time
 from enum import Enum
-from typing import List, NamedTuple, Union
+from typing import List, Union
 
 import numpy as np
 import pandas as pd
@@ -56,24 +56,10 @@ class RankFilter(Enum):
     TOP30 = "Top30"
 
 
-class PlayerStats(NamedTuple):
-    """ Contains player's stats at a given event """
-
-    rating: float
-    impact: float
-    dpr: float
-    adr: float
-    kpr: float
-    kast: float
-
-
 class FantasyError(Enum):
-    INVALID_TIME = ValueError(
-        "Wrong time period passed. Make sure end date is no earlier than start date and not "
-        "later than today.")
-    WRONG_EVENT_KEY = ValueError("Wrong event key provided.")
-    ANOTHER_PRIZE = ValueError("Not money")
-    STATS_NOT_FOUND = ValueError("No data for the provided event and filter.")
+    INVALID_TIME = ValueError("Wrong time period passed.")
+    INVALID_EVENT = ValueError("Wrong event key provided.")
+    NO_DATA = ValueError("No data found.")
 
 
 class Player:
@@ -87,46 +73,42 @@ class Player:
             return self.key == other.key
         return False
 
-    def player_events_link(self, start: str, end: str,
-                           fil: EventFilter) -> str:
+    def events_link(self, start: str, end: str, fil: EventFilter) -> str:
         """ :returns: a link to the page with filtered events """
 
         return f"https://www.hltv.org/stats/players/events/" \
                f"{self.key}/{self.name}?startDate={start}&endDate={end}&matchType={fil.value}"
 
-    def player_stats_link(self, event: "Event", fil: RankFilter):
+    def stats_link(self, event_key: int, fil: RankFilter) -> str:
         """ :returns: a link to the page with stats at a provided event """
 
-        return f"https://www.hltv.org/stats/players/{self.key}/{self.name}?event={event.key}&rankingFilter={fil.value}"
+        return f"https://www.hltv.org/stats/players/{self.key}/{self.name}?event={event_key}&rankingFilter={fil.value}"
 
-    @set_timeout(0.5)
-    def get_events(self, start: dt.date, end: dt.date,
-                   fil: EventFilter) -> List[int]:
+    @set_timeout(1)
+    def get_events(self, start: dt.date, end: dt.date, fil: EventFilter) -> List[int]:
         """
         Iterates through the events player played at within the provided time period and filter.
-        :returns: list of Event keys
+        :returns: list of events keys
         """
 
         if not (start <= end <= dt.date.today()):
             raise FantasyError.INVALID_TIME.value
-
-        _url = self.player_events_link(start.strftime('%Y-%m-%d'), end.strftime('%Y-%m-%d'), fil)
+        _url = self.events_link(start.strftime('%Y-%m-%d'), end.strftime('%Y-%m-%d'), fil)
         _src = BeautifulSoup(requests.get(_url, headers=headers).text, "lxml")
         _events = []
         for block in _src.find("table", class_="stats-table").find_all("img", class_="eventLogo"):
             _events.append(int(block.find_next_sibling("a").get("href").split("=")[-1]))
         return list(set(_events))
 
-    @set_timeout(0.5)
-    def get_event_stats(self, event: "Event",
-                        fil: RankFilter) -> np.ndarray:
+    @set_timeout(1)
+    def get_event_stats(self, event_key: int, fil: RankFilter) -> np.ndarray:
         """ :returns: a vector: (rating, dpr, kast, impact, adr, kpr) """
 
-        _src = BeautifulSoup(requests.get(self.player_stats_link(event, fil), headers=headers).text, "lxml")
+        _src = BeautifulSoup(requests.get(self.stats_link(event_key, fil), headers=headers).text, "lxml")
         _stats = _src.find_all("div", class_="summaryStatBreakdownDataValue")
 
         if float(_stats[0].text) == 0:
-            raise FantasyError.STATS_NOT_FOUND.value
+            raise FantasyError.NO_DATA.value
         return np.array([
             float(_stats[0].text),
             float(_stats[1].text),
@@ -135,25 +117,37 @@ class Player:
             float(_stats[4].text),
             float(_stats[5].text)])
 
-    @set_timeout(0.5)
-    def get_stats_dataframe(self, start: dt.date, end: dt.date, fil: EventFilter) -> pd.DataFrame:
-        _events = self.get_events(start, end, fil)
+    @set_timeout(1)
+    def get_stats_dataframe(self, start: dt.date, end: dt.date, fil: EventFilter) -> Union[pd.DataFrame, None]:
         _data = []
-        _cols = ["player", "player_id", "event_id", "avg rank", "prize", "days", "host", "rating", "dpr", "kast", "impact", "adr", "kpr"]
+        _cols = ["player", "player_id", "event_id", "avg rank", "prize",
+                 "days", "host", "rating", "dpr", "kast", "impact", "adr", "kpr"]
+        print(f"TESTING: {self.name}")
+        _events = self.get_events(start, end, fil)
+        if _events is None:
+            print(f"EVENTS NOT FOUND --> {self.name}")
+            return None
+
         for _key in _events:
+            print(f"GETTING: {self.name} --> {_key}")
             try:
                 _ev = Event(_key)
-                _event_data = [self.name, self.key, _ev.key, _ev.rank, _ev.prize, _ev.duration, "LAN" if _ev.isLan else "Online"]
-                _stats_data = self.get_event_stats(_ev, RankFilter.ALL)
+                _event_data = [self.name, self.key, _ev.key, _ev.rank, _ev.prize, _ev.duration,
+                               "LAN" if _ev.isLan else "Online"]
+                _stats_data = self.get_event_stats(_ev.key, RankFilter.ALL)
                 _data.append(np.concatenate((_event_data, _stats_data), axis=0))
-            except ValueError:
+            except Exception as ex:
+                print(f"FAILED: {str(ex)}")
                 continue
+        print(f"TOTAL EVENTS: {len(_events)}")
+        print(f"OK: {len(_data)}")
+        print(f"FAILED: {len(_events) - len(_data)}")
         return pd.DataFrame(_data, columns=_cols)
 
 
 class Event:
 
-    @set_timeout(0.5)
+    @set_timeout(1)
     def __init__(self, key: int):
 
         self.key = key
@@ -164,11 +158,8 @@ class Event:
             return 0 if not _ranks else sum(
                 int(rank.text[1:]) for rank in _ranks) / len(_ranks)
 
-        def _prize(table) -> Union[ValueError, int]:
-
-            if "$" not in table[3].text:
-                return FantasyError.ANOTHER_PRIZE.value
-            return int(table[3].text[1:].replace(",", ""))
+        def _prize(table) -> Union[int, str]:
+            return int(table[3].text[1:].replace(",", "")) if "$" in table[3].text else "Other"
 
         def _duration(table) -> int:
 
@@ -201,7 +192,7 @@ class Event:
         _src = BeautifulSoup(requests.get(self.event_info_link(), headers=headers).text, "lxml")
         _table = _src.find("table", class_="table eventMeta")
         if _table is None or len(_table.find_all("td")) != 5:
-            raise FantasyError.WRONG_EVENT_KEY.value
+            raise FantasyError.INVALID_EVENT.value
 
         _table = _table.find_all("td")
         self.rank = round(_rank(_src), 3)
@@ -216,9 +207,10 @@ class Event:
 
     def event_info_link(self) -> str:
         """ :returns: a link to the event page """
+
         return f"https://www.hltv.org/events/{self.key}/event"
 
-    @set_timeout(0.5)
+    @set_timeout(1)
     def get_players(self) -> List[Player]:
         """ :returns: a list of Player objects """
 
