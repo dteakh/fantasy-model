@@ -107,7 +107,9 @@ class Player:
         _events = []
         if _src.find("table", class_="stats-table") is not None:
             for block in _src.find("table", class_="stats-table").find_all("img", class_="eventLogo"):
-                _events.append(int(block.find_next_sibling("a").get("href").split("=")[-1]))
+                _event = int(block.find_next_sibling("a").get("href").split("=")[-1])
+                if _event != 1040:
+                    _events.append(int(block.find_next_sibling("a").get("href").split("=")[-1]))
         return list(set(_events))
 
     @set_timeout(_timeout)
@@ -133,15 +135,24 @@ class Player:
 
         _url = self.matches_link(event_key, fil)
         _src = BeautifulSoup(requests.get(_url, headers=headers).text, "lxml")
-        _total = 0
+        _ind_pts, _team_pts = 0, 0
         _maps = _src.find("table", class_="stats-table no-sort")
         if _maps is None or len(_maps.find("tbody").find_all("tr")) == 0:
             raise FantasyError.NO_DATA.value
-        for _map in _maps.find("tbody").find_all("tr"):
+
+        _stats = _maps.find("tbody").find_all("tr")
+        for _map in _stats:
             _rating = float(_map.find(class_=re.compile("rating")).text)
-            _total += int(((_rating - 1) * 100)) // 2
-            _total += 6 if bool(_map.find(class_=re.compile("match-won"))) else -3
-        return round(_total / len(_maps), 3)
+            _ind_pts += int(((_rating - 1) * 100)) // 2
+
+        _matches = _maps.find("tbody").find_all("tr", class_=re.compile("first"))
+        for _match in _matches:
+            _team_pts += 6 if bool(_match.find(class_=re.compile("match-won"))) else -3
+
+        _ind_pts /= len(_stats)
+        _team_pts /= len(_matches)
+
+        return round((_ind_pts + _team_pts) / 2, 3)
 
     @set_timeout(_timeout)
     def get_dataset(self, start: dt.date, end: dt.date, fil: EventFilter) -> Union[pd.DataFrame, None]:
