@@ -19,8 +19,6 @@ Everlasting HLTV Fantasy League project
 <h2> TODO: </h2> <br />
 -- Best 5-subset selection <br />
 -- https://en.wikipedia.org/wiki/Hungarian_algorithm <br />
--- allow creating event with some missing params <br />
--- add event types (quals, majors etc.) <br />
 -- parse datasets <br />
 -- clear df func <br />
 -- top20 checker <br />
