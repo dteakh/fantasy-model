@@ -1,13 +1,13 @@
 Everlasting HLTV Fantasy League project
 --------------------------------------------
 <h2> Struct: </h1> <br />
-<b> Player(key, name):
+<b> Player(key, name) </b>:
 -- events_link() -> link str <br />
 -- stats_link() -> link str <br />
 -- get_events() -> List[event id] <br />
 -- get_event_stats() -> np stats vector <br />
 -- get_stats_dataframe() -> df with event and stats data <br />
-<b> Event(key, rank, prize, duration, isLan):
+<b> Event(key, rank, prize, duration, isLan) </b>:
 -- event_info_link() -> link str <br />
 -- get_players() -> List[Player] <br />
 
