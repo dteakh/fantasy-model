@@ -2,6 +2,7 @@ import datetime as dt
 import time
 from enum import Enum
 from typing import List, Union
+import re
 
 import numpy as np
 import pandas as pd
@@ -84,6 +85,12 @@ class Player:
 
         return f"https://www.hltv.org/stats/players/{self.key}/{self.name}?event={event_key}&rankingFilter={fil.value}"
 
+    def matches_link(self, event_key: int, fil: RankFilter) -> str:
+        """ :returns: a link to the player's matches at a provided event"""
+
+        return f"https://www.hltv.org/stats/players/" \
+               f"matches/{self.key}/{self.name}?event={event_key}&rankingFilter={fil.value}"
+
     @set_timeout(1)
     def get_events(self, start: dt.date, end: dt.date, fil: EventFilter) -> List[int]:
         """
@@ -118,6 +125,22 @@ class Player:
             float(_stats[5].text)])
 
     @set_timeout(1)
+    def calc_pts(self, event_key: int, fil: RankFilter) -> float:
+        """ :returns: an amount of points earned per map at a given event """
+
+        _url = self.matches_link(event_key, fil)
+        _src = BeautifulSoup(requests.get(_url, headers=headers).text, "lxml")
+        _total = 0
+        _maps = _src.find("table", class_="stats-table no-sort").find("tbody").find_all("tr")
+        if len(_maps) == 0:
+            raise FantasyError.NO_DATA.value
+        for _map in _maps:
+            _rating = float(_map.find(class_=re.compile("rating")).text)
+            _total += int(((_rating - 1) * 100)) // 2
+            _total += 6 if bool(_map.find(class_=re.compile("match-won"))) else -3
+        return round(_total / len(_maps), 3)
+
+    @set_timeout(1)
     def get_stats_dataframe(self, start: dt.date, end: dt.date, fil: EventFilter) -> Union[pd.DataFrame, None]:
         _data = []
         _cols = ["player", "player_id", "event_id", "avg rank", "prize",
@@ -133,7 +156,7 @@ class Player:
             try:
                 _ev = Event(_key)
                 _event_data = [self.name, self.key, _ev.key, _ev.rank, _ev.prize, _ev.duration,
-                               "LAN" if _ev.isLan else "Online"]
+                               "LAN" if _ev.lan else "Online"]
                 _stats_data = self.get_event_stats(_ev.key, RankFilter.ALL)
                 _data.append(np.concatenate((_event_data, _stats_data), axis=0))
             except Exception as ex:
@@ -153,7 +176,6 @@ class Event:
         self.key = key
 
         def _rank(source: BeautifulSoup) -> float:
-
             _ranks = source.find_all("div", class_="event-world-rank")
             return 0 if not _ranks else sum(
                 int(rank.text[1:]) for rank in _ranks) / len(_ranks)
@@ -162,7 +184,6 @@ class Event:
             return int(table[3].text[1:].replace(",", "")) if "$" in table[3].text else "Other"
 
         def _duration(table) -> int:
-
             _months = {
                 "Jan": 1,
                 "Feb": 2,
@@ -186,7 +207,7 @@ class Event:
                            int(_items[1][:-2]))
             return int(str(_end - _start).split(" ")[0])
 
-        def _isLan(table) -> bool:
+        def _lan(table) -> bool:
             return "Online" not in table[4].text
 
         _src = BeautifulSoup(requests.get(self.event_info_link(), headers=headers).text, "lxml")
@@ -198,7 +219,7 @@ class Event:
         self.rank = round(_rank(_src), 3)
         self.prize = _prize(_table)
         self.duration = _duration(_table)
-        self.isLan = _isLan(_table)
+        self.lan = _lan(_table)
 
     def __eq__(self, other):
         if isinstance(other, Event):
