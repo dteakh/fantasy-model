@@ -1,6 +1,6 @@
 Everlasting HLTV Fantasy League project
 --------------------------------------------
-<h1> Struct: <br />
+<h1> Struct: </h1> <br />
 <b> Player(key, name):
 -- events_link() -> link str <br />
 -- stats_link() -> link str <br />
