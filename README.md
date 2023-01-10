@@ -20,7 +20,7 @@ Everlasting HLTV Fantasy League project
 -- Best 5-subset selection <br />
 -- https://en.wikipedia.org/wiki/Hungarian_algorithm <br />
 -- parse datasets <br />
--- clear df func <br />
+-- handle df function (prep for model) <br />
 -- top20 checker <br />
 -- tests <br />
 -- clear code <br />
