@@ -18,6 +18,8 @@ headers = {
         "Safari/537.36"
 }
 
+_timeout = 1.0
+
 
 def set_timeout(timeout: float):
     """ Controls the frequency of calling parsing functions. """
@@ -91,7 +93,7 @@ class Player:
         return f"https://www.hltv.org/stats/players/" \
                f"matches/{self.key}/{self.name}?event={event_key}&rankingFilter={fil.value}"
 
-    @set_timeout(1)
+    @set_timeout(_timeout)
     def get_events(self, start: dt.date, end: dt.date, fil: EventFilter) -> List[int]:
         """
         Iterates through the events player played at within the provided time period and filter.
@@ -103,11 +105,12 @@ class Player:
         _url = self.events_link(start.strftime('%Y-%m-%d'), end.strftime('%Y-%m-%d'), fil)
         _src = BeautifulSoup(requests.get(_url, headers=headers).text, "lxml")
         _events = []
-        for block in _src.find("table", class_="stats-table").find_all("img", class_="eventLogo"):
-            _events.append(int(block.find_next_sibling("a").get("href").split("=")[-1]))
+        if _src.find("table", class_="stats-table") is not None:
+            for block in _src.find("table", class_="stats-table").find_all("img", class_="eventLogo"):
+                _events.append(int(block.find_next_sibling("a").get("href").split("=")[-1]))
         return list(set(_events))
 
-    @set_timeout(1)
+    @set_timeout(_timeout)
     def get_event_stats(self, event_key: int, fil: RankFilter) -> np.ndarray:
         """ :returns: a vector: (rating, dpr, kast, impact, adr, kpr) """
 
@@ -124,27 +127,27 @@ class Player:
             float(_stats[4].text),
             float(_stats[5].text)])
 
-    @set_timeout(1)
+    @set_timeout(_timeout)
     def calc_pts(self, event_key: int, fil: RankFilter) -> float:
         """ :returns: an amount of points earned per map at a given event """
 
         _url = self.matches_link(event_key, fil)
         _src = BeautifulSoup(requests.get(_url, headers=headers).text, "lxml")
         _total = 0
-        _maps = _src.find("table", class_="stats-table no-sort").find("tbody").find_all("tr")
-        if len(_maps) == 0:
+        _maps = _src.find("table", class_="stats-table no-sort")
+        if _maps is None or len(_maps.find("tbody").find_all("tr")) == 0:
             raise FantasyError.NO_DATA.value
-        for _map in _maps:
+        for _map in _maps.find("tbody").find_all("tr"):
             _rating = float(_map.find(class_=re.compile("rating")).text)
             _total += int(((_rating - 1) * 100)) // 2
             _total += 6 if bool(_map.find(class_=re.compile("match-won"))) else -3
         return round(_total / len(_maps), 3)
 
-    @set_timeout(1)
-    def get_stats_dataframe(self, start: dt.date, end: dt.date, fil: EventFilter) -> Union[pd.DataFrame, None]:
+    @set_timeout(_timeout)
+    def get_dataset(self, start: dt.date, end: dt.date, fil: EventFilter) -> Union[pd.DataFrame, None]:
         _data = []
-        _cols = ["player", "player_id", "event_id", "avg rank", "prize",
-                 "days", "host", "rating", "dpr", "kast", "impact", "adr", "kpr"]
+        _cols = ["player", "player_id", "event", "event_id", "major related", "lan",
+                 "avg rank", "prize", "days", "rating", "dpr", "kast", "impact", "adr", "kpr", "pts"]
         print(f"TESTING: {self.name}")
         _events = self.get_events(start, end, fil)
         if _events is None:
@@ -155,10 +158,12 @@ class Player:
             print(f"GETTING: {self.name} --> {_key}")
             try:
                 _ev = Event(_key)
-                _event_data = [self.name, self.key, _ev.key, _ev.rank, _ev.prize, _ev.duration,
-                               "LAN" if _ev.lan else "Online"]
+                _pts = self.calc_pts(_key, RankFilter.ALL)
+                _ps = ["major", "rmr"]
+                _event_data = [self.name, self.key, _ev.name, _ev.key,  any(p in _ev.name.lower() for p in _ps),
+                               _ev.lan, _ev.rank, _ev.prize, _ev.duration]
                 _stats_data = self.get_event_stats(_ev.key, RankFilter.ALL)
-                _data.append(np.concatenate((_event_data, _stats_data), axis=0))
+                _data.append(np.concatenate((_event_data, _stats_data, [_pts]), axis=0))
             except Exception as ex:
                 print(f"FAILED: {str(ex)}")
                 continue
@@ -170,10 +175,13 @@ class Player:
 
 class Event:
 
-    @set_timeout(1)
+    @set_timeout(_timeout)
     def __init__(self, key: int):
 
         self.key = key
+
+        def _name(source: BeautifulSoup) -> str:
+            return source.find("h1", class_="event-hub-title").text
 
         def _rank(source: BeautifulSoup) -> float:
             _ranks = source.find_all("div", class_="event-world-rank")
@@ -216,6 +224,7 @@ class Event:
             raise FantasyError.INVALID_EVENT.value
 
         _table = _table.find_all("td")
+        self.name = _name(_src)
         self.rank = round(_rank(_src), 3)
         self.prize = _prize(_table)
         self.duration = _duration(_table)
@@ -231,7 +240,7 @@ class Event:
 
         return f"https://www.hltv.org/events/{self.key}/event"
 
-    @set_timeout(1)
+    @set_timeout(_timeout)
     def get_players(self) -> List[Player]:
         """ :returns: a list of Player objects """
 
