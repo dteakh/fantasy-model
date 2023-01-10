@@ -27,6 +27,6 @@ Everlasting HLTV Fantasy League project
 -- clear code <br />
 :))))))))))))))))))))) <br />
 <br />
-<b> Source: <br />
-https://www.hltv.org/news/26309/introducing-fantasy <br />
-https://www.hltv.org/fantasy
+<h2> Source: </h2> <br />
+-- https://www.hltv.org/news/26309/introducing-fantasy <br />
+-- https://www.hltv.org/fantasy
