@@ -158,7 +158,7 @@ class Player:
     def get_dataset(self, start: dt.date, end: dt.date, fil: EventFilter) -> Union[pd.DataFrame, None]:
         _data = []
         _cols = ["player", "player_id", "event", "event_id", "major related", "lan",
-                 "avg rank", "prize", "days", "rating", "dpr", "kast", "impact", "adr", "kpr", "pts"]
+                 "avg rank", "prize", "start date", "end date", "rating", "dpr", "kast", "impact", "adr", "kpr", "pts"]
         print(f"TESTING: {self.name}")
         _events = self.get_events(start, end, fil)
         if _events is None:
@@ -169,10 +169,11 @@ class Player:
             print(f"GETTING: {self.name} --> {_key}")
             try:
                 _ev = Event(_key)
+                time.sleep(1)
                 _pts = self.calc_pts(_key, RankFilter.ALL)
                 _ps = ["major", "rmr"]
                 _event_data = [self.name, self.key, _ev.name, _ev.key,  any(p in _ev.name.lower() for p in _ps),
-                               _ev.lan, _ev.rank, _ev.prize, _ev.duration]
+                               _ev.lan, _ev.rank, _ev.prize, _ev.start_date, _ev.end_date]
                 _stats_data = self.get_event_stats(_ev.key, RankFilter.ALL)
                 _data.append(np.concatenate((_event_data, _stats_data, [_pts]), axis=0))
             except Exception as ex:
@@ -202,7 +203,7 @@ class Event:
         def _prize(table) -> Union[int, str]:
             return int(table[3].text[1:].replace(",", "")) if "$" in table[3].text else "Other"
 
-        def _duration(table) -> int:
+        def _duration(table) -> (str, str):
             _months = {
                 "Jan": 1,
                 "Feb": 2,
@@ -224,7 +225,7 @@ class Event:
             _items = table[1].text.split(" ")
             _end = dt.date(int(_items[2]), _months[_items[0]],
                            int(_items[1][:-2]))
-            return int(str(_end - _start).split(" ")[0])
+            return _start.strftime('%Y-%m-%d'), _end.strftime('%Y-%m-%d')
 
         def _lan(table) -> bool:
             return "Online" not in table[4].text
@@ -238,7 +239,9 @@ class Event:
         self.name = _name(_src)
         self.rank = round(_rank(_src), 3)
         self.prize = _prize(_table)
-        self.duration = _duration(_table)
+        _date = _duration(_table)
+        self.start_date = _date[0]
+        self.end_date = _date[1]
         self.lan = _lan(_table)
 
     def __eq__(self, other):
