@@ -7,6 +7,7 @@ TODO: <br />
 --> parse datasets <br />
 --> clear df func <br />
 --> top20 checker <br />
+--> tests
 --> clear code <br />
 :))))))))))))))))))))) <br />
 
