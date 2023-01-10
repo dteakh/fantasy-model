@@ -5,11 +5,11 @@ TODO: <br />
 --> https://en.wikipedia.org/wiki/Hungarian_algorithm <br />
 --> calc_players_pts() function <br />
 --> parse datasets <br />
---> clear df func
---> top20 checker
+--> clear df func <br />
+--> top20 checker <br />
 --> clear code <br />
 :))))))))))))))))))))) <br />
 
-<b> Source: <\b> <br />
+<b> Source: <br />
 https://www.hltv.org/news/26309/introducing-fantasy <br />
 https://www.hltv.org/fantasy
