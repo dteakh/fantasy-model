@@ -1,5 +1,6 @@
 Everlasting HLTV Fantasy League project
 --------------------------------------------
+<b> NOTE: Do not browse HLTV while parsing! </b> <br />
 <h2> Struct: </h1> <br />
 <b> Player(key, name) </b>: <br />
 <br />
