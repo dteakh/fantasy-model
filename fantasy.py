@@ -185,7 +185,7 @@ class Player:
         :returns: a dataframe of stats or nothing if no data found
         """
         _data = []
-        _cols = ["player", "player_id", "event", "event_id", "major related", "lan",
+        _cols = ["player", "player_id", "event", "event_id", "major related", "lan", "qual",
                  "avg rank", "prize", "start date", "end date", "rating", "dpr", "kast", "impact", "adr", "kpr", "pts"]
         print(f"TESTING: {self.name}")
         _events = self.get_events(start, end, ev_fil)
@@ -200,8 +200,9 @@ class Player:
                 time.sleep(1)
                 _pts = self.calc_pts(_key, RankFilter.ALL)
                 _ps = ["major", "rmr"]
+                _prize = 0 if _ev.prize == "Other" else _ev.prize
                 _ev_data = [self.name, self.key, _ev.name, _ev.key, any(p in _ev.name.lower() for p in _ps),
-                            _ev.lan, _ev.rank, _ev.prize, _ev.start_date.strftime('%Y-%m-%d'),
+                            _ev.lan, _prize == 0, _ev.rank, _prize, _ev.start_date.strftime('%Y-%m-%d'),
                             _ev.end_date.strftime('%Y-%m-%d')]
                 _stats_data = self.get_stats(_ev.start_date - delta, _ev.start_date, ste_fil, str_fil)
                 _data.append(np.concatenate((_ev_data, _stats_data, [_pts]), axis=0))
