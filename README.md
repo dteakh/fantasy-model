@@ -14,6 +14,9 @@ Everlasting HLTV Fantasy League project
 -- event_info_link() -> link str <br />
 -- get_players() -> List[Player] <br />
 <br />
+<b> fantasyalgo module (courtesy pybind11) </b>: <br />
+-- best_subset(points, costs) -> best 5-subset. for n players ~ O(N choose 5) <br />
+<br />
 
 
 <h2> TODO: </h2> <br />
