@@ -63,6 +63,7 @@ class FantasyError(Enum):
     INVALID_TIME = ValueError("Wrong time period passed.")
     INVALID_EVENT = ValueError("Wrong event key provided.")
     NO_DATA = ValueError("No data found.")
+    INVALID_ARGUMENTS = ValueError("Wrong number or type of arguments passed.")
 
 
 class Player:
@@ -82,10 +83,21 @@ class Player:
         return f"https://www.hltv.org/stats/players/events/" \
                f"{self.key}/{self.name}?startDate={start}&endDate={end}&matchType={fil.value}"
 
-    def stats_link(self, event_key: int, fil: RankFilter) -> str:
-        """ :returns: a link to the page with stats at a provided event """
+    def stats_link(self, *args) -> str:
+        """
+        Takes (event key, RankFilter) or (time period, EventFilter, RankFilter).
+        :returns: a link to the page with stats at a provided event or time period
+         """
 
-        return f"https://www.hltv.org/stats/players/{self.key}/{self.name}?event={event_key}&rankingFilter={fil.value}"
+        if len(args) == 4:
+            return f"https://www.hltv.org/stats/players/{self.key}/{self.name}?" \
+                   f"startDate={args[0].strftime('%Y-%m-%d')}&endDate={args[1].strftime('%Y-%m-%d')}" \
+                   f"&matchType={args[2].value}&rankingFilter={args[3].value}"
+        elif len(args) == 2:
+            return f"https://www.hltv.org/stats/players/{self.key}/{self.name}?" \
+                   f"event={args[0]}&rankingFilter={args[1].value}"
+        else:
+            raise FantasyError.INVALID_ARGUMENTS
 
     def matches_link(self, event_key: int, fil: RankFilter) -> str:
         """ :returns: a link to the player's matches at a provided event"""
@@ -113,14 +125,24 @@ class Player:
         return list(set(_events))
 
     @set_timeout(_timeout)
-    def get_event_stats(self, event_key: int, fil: RankFilter) -> np.ndarray:
-        """ :returns: a vector: (rating, dpr, kast, impact, adr, kpr) """
+    def get_stats(self, *args) -> np.ndarray:
+        """
+        Takes (event key, RankFilter) or (time period, EventFilter, RankFilter).
+        :returns: a vector: (rating, dpr, kast, impact, adr, kpr)
+        """
 
-        _src = BeautifulSoup(requests.get(self.stats_link(event_key, fil), headers=headers).text, "lxml")
+        try:
+            _url = self.stats_link(*args)
+        except Exception as ex:
+            print(str(ex))
+            return np.array([])
+
+        _src = BeautifulSoup(requests.get(_url, headers=headers).text, "lxml")
         _stats = _src.find_all("div", class_="summaryStatBreakdownDataValue")
 
         if float(_stats[0].text) == 0:
             raise FantasyError.NO_DATA.value
+
         return np.array([
             float(_stats[0].text),
             float(_stats[1].text),
@@ -155,12 +177,18 @@ class Player:
         return round((_ind_pts + _team_pts) / 2, 3)
 
     @set_timeout(_timeout)
-    def get_dataset(self, start: dt.date, end: dt.date, fil: EventFilter) -> Union[pd.DataFrame, None]:
+    def get_dataset(self, start: dt.date, end: dt.date, ev_fil: EventFilter,
+                    delta: dt.timedelta, ste_fil: EventFilter, str_fil: RankFilter) -> Union[pd.DataFrame, None]:
+        """
+        Takes timeperiod and event filter to parse the events according to arguments. Then takes the time delta (days),
+        event filter and rank filter to parse the stats using filters time delta before the event starts.
+        :returns: a dataframe of stats or nothing if no data found
+        """
         _data = []
         _cols = ["player", "player_id", "event", "event_id", "major related", "lan",
                  "avg rank", "prize", "start date", "end date", "rating", "dpr", "kast", "impact", "adr", "kpr", "pts"]
         print(f"TESTING: {self.name}")
-        _events = self.get_events(start, end, fil)
+        _events = self.get_events(start, end, ev_fil)
         if _events is None:
             print(f"EVENTS NOT FOUND --> {self.name}")
             return None
@@ -172,10 +200,11 @@ class Player:
                 time.sleep(1)
                 _pts = self.calc_pts(_key, RankFilter.ALL)
                 _ps = ["major", "rmr"]
-                _event_data = [self.name, self.key, _ev.name, _ev.key,  any(p in _ev.name.lower() for p in _ps),
-                               _ev.lan, _ev.rank, _ev.prize, _ev.start_date, _ev.end_date]
-                _stats_data = self.get_event_stats(_ev.key, RankFilter.ALL)
-                _data.append(np.concatenate((_event_data, _stats_data, [_pts]), axis=0))
+                _ev_data = [self.name, self.key, _ev.name, _ev.key, any(p in _ev.name.lower() for p in _ps),
+                            _ev.lan, _ev.rank, _ev.prize, _ev.start_date.strftime('%Y-%m-%d'),
+                            _ev.end_date.strftime('%Y-%m-%d')]
+                _stats_data = self.get_stats(_ev.start_date - delta, _ev.start_date, ste_fil, str_fil)
+                _data.append(np.concatenate((_ev_data, _stats_data, [_pts]), axis=0))
             except Exception as ex:
                 print(f"FAILED: {str(ex)}")
                 continue
@@ -203,7 +232,7 @@ class Event:
         def _prize(table) -> Union[int, str]:
             return int(table[3].text[1:].replace(",", "")) if "$" in table[3].text else "Other"
 
-        def _duration(table) -> (str, str):
+        def _dates(table) -> (dt.date, dt.date):
             _months = {
                 "Jan": 1,
                 "Feb": 2,
@@ -225,7 +254,7 @@ class Event:
             _items = table[1].text.split(" ")
             _end = dt.date(int(_items[2]), _months[_items[0]],
                            int(_items[1][:-2]))
-            return _start.strftime('%Y-%m-%d'), _end.strftime('%Y-%m-%d')
+            return _start, _end
 
         def _lan(table) -> bool:
             return "Online" not in table[4].text
@@ -239,7 +268,7 @@ class Event:
         self.name = _name(_src)
         self.rank = round(_rank(_src), 3)
         self.prize = _prize(_table)
-        _date = _duration(_table)
+        _date = _dates(_table)
         self.start_date = _date[0]
         self.end_date = _date[1]
         self.lan = _lan(_table)
