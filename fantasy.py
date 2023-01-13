@@ -211,7 +211,7 @@ class Player:
         """
         _data = []
         _cols = ["player", "player_id", "event", "event_id", "major related", "lan", "qual",
-                 "avg rank", "prize", "duration", "rating", "dpr", "kast", "impact", "adr", "kpr", "pts"]
+                 "avg rank", "prize", "duration", "rating", "dpr", "kast", "impact", "adr", "kpr", "winrate", "pts"]
         _cols_types = {"player": np.str, "player_id": np.str, "event": np.str, "event_id": np.int32,
                        "major related": np.int32, "lan": np.int32, "qual": np.int32, "avg rank": np.float32,
                        "prize": np.int32, "duration": np.int32, "rating": np.float32, "dpr": np.float32,
