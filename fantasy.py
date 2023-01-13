@@ -152,13 +152,29 @@ class Player:
         if float(_stats[0].text) == 0:
             raise FantasyError.NO_DATA.value
 
-        return np.array([
-            float(_stats[0].text),
-            float(_stats[1].text),
-            float(_stats[2].text[:-1]),
-            float(_stats[3].text),
-            float(_stats[4].text),
-            float(_stats[5].text)])
+        if len(args) == 4:
+            _url = f"https://www.hltv.org/stats/players/matches/{self.key}/{self.name}" \
+                   f"?startDate={args[0].strftime('%Y-%m-%d')}&endDate={args[1].strftime('%Y-%m-%d')}" \
+                   f"&matchType={args[2].value}&rankingFilter={args[3].value}"
+            _src = BeautifulSoup(requests.get(_url, headers=headers).text, "lxml")
+            _items = _src.find("div", class_="summary").find_all("div", class_="col")
+            _wr = float(_items[1].find("div", class_="value").text[:-1])
+            return np.array([
+                float(_stats[0].text),
+                float(_stats[1].text),
+                float(_stats[2].text[:-1]),
+                float(_stats[3].text),
+                float(_stats[4].text),
+                float(_stats[5].text),
+                _wr])
+        else:
+            return np.array([
+                float(_stats[0].text),
+                float(_stats[1].text),
+                float(_stats[2].text[:-1]),
+                float(_stats[3].text),
+                float(_stats[4].text),
+                float(_stats[5].text)])
 
     @set_timeout(_timeout)
     def calc_pts(self, event_key: int, fil: RankFilter) -> float:
