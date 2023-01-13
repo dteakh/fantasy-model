@@ -1,7 +1,7 @@
 import datetime as dt
 import time
 from enum import Enum
-from typing import List, Union
+from typing import List, Union, Dict, NamedTuple
 import re
 
 import numpy as np
@@ -9,6 +9,8 @@ import pandas as pd
 
 import requests
 from bs4 import BeautifulSoup
+
+from sklearn.linear_model import LinearRegression
 
 headers = {
     "Accept":
@@ -66,6 +68,13 @@ class FantasyError(Enum):
     INVALID_ARGUMENTS = ValueError("Wrong number or type of arguments passed.")
 
 
+class Data(NamedTuple):
+    """ Data object containing cost and predicted points for a player. """
+
+    cost: int
+    pts: float
+
+
 class Player:
 
     def __init__(self, key: int, name: str):
@@ -97,7 +106,7 @@ class Player:
             return f"https://www.hltv.org/stats/players/{self.key}/{self.name}?" \
                    f"event={args[0]}&rankingFilter={args[1].value}"
         else:
-            raise FantasyError.INVALID_ARGUMENTS
+            raise FantasyError.INVALID_ARGUMENTS.value
 
     def matches_link(self, event_key: int, fil: RankFilter) -> str:
         """ :returns: a link to the player's matches at a provided event"""
@@ -186,7 +195,13 @@ class Player:
         """
         _data = []
         _cols = ["player", "player_id", "event", "event_id", "major related", "lan", "qual",
-                 "avg rank", "prize", "start date", "end date", "rating", "dpr", "kast", "impact", "adr", "kpr", "pts"]
+                 "avg rank", "prize", "duration", "rating", "dpr", "kast", "impact", "adr", "kpr", "pts"]
+        _cols_types = {"player": np.str, "player_id": np.str, "event": np.str, "event_id": np.int32,
+                       "major related": np.int32, "lan": np.int32, "qual": np.int32, "avg rank": np.float32,
+                       "prize": np.int32, "duration": np.int32, "rating": np.float32, "dpr": np.float32,
+                       "kast": np.float32, "impact": np.float32, "adr": np.float32,
+                       "kpr": np.float32, "pts": np.float32}
+
         print(f"TESTING: {self.name}")
         _events = self.get_events(start, end, ev_fil)
         if _events is None:
@@ -199,11 +214,9 @@ class Player:
                 _ev = Event(_key)
                 time.sleep(1)
                 _pts = self.calc_pts(_key, RankFilter.ALL)
-                _ps = ["major", "rmr"]
-                _prize = 0 if _ev.prize == "Other" else _ev.prize
-                _ev_data = [self.name, self.key, _ev.name, _ev.key, any(p in _ev.name.lower() for p in _ps),
-                            _ev.lan, _prize == 0, _ev.rank, _prize, _ev.start_date.strftime('%Y-%m-%d'),
-                            _ev.end_date.strftime('%Y-%m-%d')]
+                _ev_data = [self.name, self.key, _ev.name, _ev.key,
+                            int(any(p in _ev.name.lower() for p in ["major", "rmr"])), int(_ev.lan),
+                            int(_ev.prize == 0), _ev.rank, _ev.prize, _ev.duration]
                 _stats_data = self.get_stats(_ev.start_date - delta, _ev.start_date, ste_fil, str_fil)
                 _data.append(np.concatenate((_ev_data, _stats_data, [_pts]), axis=0))
             except Exception as ex:
@@ -212,7 +225,7 @@ class Player:
         print(f"TOTAL EVENTS: {len(_events)}")
         print(f"OK: {len(_data)}")
         print(f"FAILED: {len(_events) - len(_data)}")
-        return pd.DataFrame(_data, columns=_cols)
+        return pd.DataFrame(_data, columns=_cols).astype(_cols_types)
 
 
 class Event:
@@ -231,7 +244,7 @@ class Event:
                 int(rank.text[1:]) for rank in _ranks) / len(_ranks)
 
         def _prize(table) -> Union[int, str]:
-            return int(table[3].text[1:].replace(",", "")) if "$" in table[3].text else "Other"
+            return int(table[3].text[1:].replace(",", "")) if "$" in table[3].text else 0
 
         def _dates(table) -> (dt.date, dt.date):
             _months = {
@@ -272,6 +285,7 @@ class Event:
         _date = _dates(_table)
         self.start_date = _date[0]
         self.end_date = _date[1]
+        self.duration = int(str(_date[1] - _date[0]).split(" ")[0])
         self.lan = _lan(_table)
 
     def __eq__(self, other):
@@ -296,3 +310,61 @@ class Event:
                 _result.append(
                     Player(key=int(_items[-2]), name=_items[-1].lower()))
         return _result
+
+    @set_timeout(_timeout)
+    def get_costs(self, file_name: str) -> Dict[str, int]:
+        with open(file_name, "r") as file:
+            _src = BeautifulSoup(file.read(), "lxml")
+        _costs = dict()
+        try:
+            for box in _src.find_all("div", "teamPlayer"):
+                _name = box.find("div", class_="player-card-container").text.lower()
+                _cost = int(box.find("div", class_="playerButtonText").text.split(",")[0][1:])
+                _costs[_name] = _cost
+        except Exception as ex:
+            print(f"FAILED: {str(ex)}")
+            return {}
+        return _costs
+
+    @set_timeout(_timeout)
+    def process(self, players: List[Player], costs: Dict[str, int], start: dt.date, end: dt.date, efilter: EventFilter,
+                rfilter: RankFilter, delta: dt.timedelta) -> pd.DataFrame:
+
+        _result = []
+        _cols = ["player", "cost", "predicted pts"]
+        _cols_types = {"player": np.str, "cost": np.int32, "predicted pts": np.float32}
+        _players_got = list(costs.keys())
+
+        for _pl in players:
+            try:
+                if _pl.name not in _players_got:
+                    print(f"{_pl.name} was not found in costs list.")
+                    continue
+                _data = _pl.get_dataset(start, end, efilter, delta, efilter, rfilter)
+                _recent_stats = _pl.get_stats(end - delta, end, efilter, rfilter)
+                _pred = self.predict(_recent_stats, _data)
+                _result.append(np.array([_pl.name, costs[_pl.name], _pred]))
+            except Exception as ex:
+                print(f"FAILED: {str(ex)}")
+                continue
+
+        return pd.DataFrame(_result, columns=_cols).astype(_cols_types)
+
+    def predict(self, pl_stats: np.ndarray, tr_data: pd.DataFrame) -> float:
+        try:
+            _X = np.array(tr_data.drop(columns=["player", "player_id", "event", "event_id", "pts",
+                                                "prize", "qual", "duration"]).to_numpy())  # REMOVED PARAMS
+            _y = np.array(tr_data['pts'])
+            _model = LinearRegression()
+            _model.fit(_X, _y)
+            _data_vector = np.array([[
+                int(any(p in self.name.lower() for p in ["major", "rmr"])), int(self.lan),
+                self.rank, pl_stats[0], pl_stats[1], pl_stats[2],
+                pl_stats[3], pl_stats[4], pl_stats[5]
+            ]])
+            _predicted = _model.predict(_data_vector)
+        except Exception as ex:
+            print(f"FAILED: {str(ex)}")
+            return 0
+
+        return float(_predicted[0])
