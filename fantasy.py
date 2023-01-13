@@ -216,7 +216,7 @@ class Player:
                        "major related": np.int32, "lan": np.int32, "qual": np.int32, "avg rank": np.float32,
                        "prize": np.int32, "duration": np.int32, "rating": np.float32, "dpr": np.float32,
                        "kast": np.float32, "impact": np.float32, "adr": np.float32,
-                       "kpr": np.float32, "pts": np.float32}
+                       "kpr": np.float32, "winrate": np.float32, "pts": np.float32}
 
         print(f"TESTING: {self.name}")
         _events = self.get_events(start, end, ev_fil)
