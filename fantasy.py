@@ -228,7 +228,7 @@ class Player:
             print(f"GETTING: {self.name} --> {_key}")
             try:
                 _ev = Event(_key)
-                time.sleep(1)
+                time.sleep(1.5)
                 _pts = self.calc_pts(_key, RankFilter.ALL)
                 _ev_data = [self.name, self.key, _ev.name, _ev.key,
                             int(any(p in _ev.name.lower() for p in ["major", "rmr"])), int(_ev.lan),
@@ -237,6 +237,7 @@ class Player:
                 _data.append(np.concatenate((_ev_data, _stats_data, [_pts]), axis=0))
             except Exception as ex:
                 print(f"FAILED: {str(ex)}")
+                time.sleep(1)
                 continue
         print(f"TOTAL EVENTS: {len(_events)}")
         print(f"OK: {len(_data)}")
