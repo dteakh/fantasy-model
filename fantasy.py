@@ -110,10 +110,10 @@ class Player:
         _url = self.stats_link(start.strftime('%Y-%m-%d'), end.strftime('%Y-%m-%d'), fil)
         _src = BeautifulSoup(requests.get(_url, headers=HEADERS).text, "lxml")
         _stats = _src.find("div", class_="summary").find_all("div", class_="value")
-        
+
         if _stats[1].text[:-1] == "-":
             return np.zeros(2)
-        
+
         return np.array([
             float(_stats[0].text),
             float(_stats[1].text[:-1])
@@ -152,7 +152,7 @@ class Player:
         """
 
         _data = []
-        _cols = ["player", "event", "all events rating", "big events rating", "all events wr", "big events wr", "pts"]
+        _cols = ["player", "event", "avg rank", "all events rating", "big events rating", "all events wr", "big events wr", "pts"]
         _types = {
             "player": np.str, "event": np.str, "all events rating": np.float32,
             "big events rating": np.float32, "all events wr": np.float32, "big events wr": np.float32, "pts": np.float32
@@ -176,7 +176,8 @@ class Player:
 
                 _ev_data = np.array([_event.name, _event.rank])
 
-                _data.append(np.concatenate(([_event.name, _event.rank], _all_stats, _big_stats, [_pts]), axis=0))
+                _data.append(np.concatenate(([self.name], [_event.name, _event.rank], 
+                                             _all_stats, _big_stats, [_pts]), axis=0))
 
             except Exception as ex:
                 print(f"FAILED: {str(ex)}")
