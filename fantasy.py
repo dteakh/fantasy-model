@@ -152,7 +152,7 @@ class Player:
         """
 
         _data = []
-        _cols = ["player", "event", "avg rank", "all events rating", "big events rating", "all events wr", "big events wr", "pts"]
+        _cols = ["player", "event", "avg rank", "all events rating", "all events wr", "big events rating", "big events wr", "pts"]
         _types = {
             "player": np.str, "event": np.str, "all events rating": np.float32,
             "big events rating": np.float32, "all events wr": np.float32, "big events wr": np.float32, "pts": np.float32
@@ -176,7 +176,7 @@ class Player:
 
                 _ev_data = np.array([_event.name, _event.rank])
 
-                _data.append(np.concatenate(([self.name], [_event.name, _event.rank], 
+                _data.append(np.concatenate(([self.name], [_event.name, _event.rank],
                                              _all_stats, _big_stats, [_pts]), axis=0))
 
             except Exception as ex:
