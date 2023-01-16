@@ -110,6 +110,10 @@ class Player:
         _url = self.stats_link(start.strftime('%Y-%m-%d'), end.strftime('%Y-%m-%d'), fil)
         _src = BeautifulSoup(requests.get(_url, headers=HEADERS).text, "lxml")
         _stats = _src.find("div", class_="summary").find_all("div", class_="value")
+        
+        if _stats[1].text[:-1] == "-":
+            return np.zeros(2)
+        
         return np.array([
             float(_stats[0].text),
             float(_stats[1].text[:-1])
