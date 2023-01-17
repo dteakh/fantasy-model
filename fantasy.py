@@ -101,10 +101,10 @@ class Player:
         return list(set(_events))
 
     @set_timeout(TIMEOUT)
-    def get_stats(self, start: dt.date, end: dt.date, fil: EventFilter) -> np.ndarray:
+    def get_stats(self, start: dt.date, end: dt.date, fil: EventFilter) -> float:
         """
         Takes (time period, EventFilter).
-        :returns: a vector: (rating, winning rate)
+        :returns: rating
         """
 
         _url = self.stats_link(start.strftime('%Y-%m-%d'), end.strftime('%Y-%m-%d'), fil)
@@ -112,12 +112,9 @@ class Player:
         _stats = _src.find("div", class_="summary").find_all("div", class_="value")
 
         if _stats[1].text[:-1] == "-":
-            return np.zeros(2)
+            return 0
 
-        return np.array([
-            float(_stats[0].text),
-            float(_stats[1].text[:-1])
-        ])
+        return float(_stats[0].text)
 
     @set_timeout(TIMEOUT)
     def calc_pts(self, event_key: int) -> float:
@@ -139,10 +136,7 @@ class Player:
         for _match in _matches:
             _team_pts += 6 if bool(_match.find(class_=re.compile("match-won"))) else -3
 
-        _ind_pts /= len(_stats)
-        _team_pts /= len(_matches)
-
-        return round((_ind_pts + _team_pts) / 2, 3)
+        return round(_ind_pts + _team_pts, 3)
 
     @set_timeout(TIMEOUT)
     def get_dataset(self, start: dt.date, end: dt.date, delta: dt.timedelta) -> Union[pd.DataFrame, None]:
@@ -152,10 +146,10 @@ class Player:
         """
 
         _data = []
-        _cols = ["player", "event", "avg rank", "all events rating", "all events wr", "big events rating", "big events wr", "pts"]
+        _cols = ["player", "event", "avg rank", "all events rating", "big events rating", "pts"]
         _types = {
-            "player": np.str, "event": np.str, "all events rating": np.float32,
-            "big events rating": np.float32, "all events wr": np.float32, "big events wr": np.float32, "pts": np.float32
+            "player": np.str, "event": np.str, "avg rank": np.float32,
+            "all events rating": np.float32, "big events rating": np.float32, "pts": np.float32
         }
 
         print(f"TESTING: {self.name}")
@@ -171,13 +165,12 @@ class Player:
                 _event = Event(_key)
                 _pts = self.calc_pts(_key)
 
-                _all_stats = self.get_stats(_event.start - delta, _event.start - dt.timedelta(1), EventFilter.ALL)
-                _big_stats = self.get_stats(_event.start - delta, _event.start - dt.timedelta(1), EventFilter.BIG)
+                _all_rating = self.get_stats(_event.start - delta, _event.start - dt.timedelta(1), EventFilter.ALL)
+                _big_rating = self.get_stats(_event.start - delta, _event.start - dt.timedelta(1), EventFilter.BIG)
 
                 _ev_data = np.array([_event.name, _event.rank])
 
-                _data.append(np.concatenate(([self.name], [_event.name, _event.rank],
-                                             _all_stats, _big_stats, [_pts]), axis=0))
+                _data.append(np.array(([self.name, _event.name, _event.rank, _all_rating, _big_rating, _pts]), axis=0))
 
             except Exception as ex:
                 print(f"FAILED: {str(ex)}")
