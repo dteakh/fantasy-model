@@ -111,7 +111,7 @@ class Player:
         _src = BeautifulSoup(requests.get(_url, headers=HEADERS).text, "lxml")
         _stats = _src.find("div", class_="summary").find_all("div", class_="value")
 
-        if _stats[1].text[:-1] == "-":
+        if not bool(_stats[1].text[:-1]):
             return 0
 
         return float(_stats[0].text)
@@ -170,7 +170,7 @@ class Player:
 
                 _ev_data = np.array([_event.name, _event.rank])
 
-                _data.append(np.array(([self.name, _event.name, _event.rank, _all_rating, _big_rating, _pts]), axis=0))
+                _data.append(np.array([self.name, _event.name, _event.rank, _all_rating, _big_rating, _pts]))
 
             except Exception as ex:
                 print(f"FAILED: {str(ex)}")
