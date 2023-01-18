@@ -9,7 +9,7 @@ import requests
 from bs4 import BeautifulSoup
 
 BASE = "https://www.hltv.org"
-TIMEOUT = 1.5
+TIMEOUT = 2
 HEADERS = {
     "Accept":
         "*/*",
