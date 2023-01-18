@@ -73,7 +73,7 @@ class Player:
         Takes time period and EventFilter.
         :returns: a link to the page with matches history
          """
-        return f"{BASE}/stats/players/matches/{self.key}/{self.name}?matchType={fil.value}"
+        return f"{BASE}/stats/players/matches/{self.key}/{self.name}?startDate={start}&endDate={end}"
 
     def matches_link(self, event_key: int) -> str:
         """ :returns: a link to the player's matches at a provided event"""
