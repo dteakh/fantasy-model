@@ -73,12 +73,13 @@ class Player:
         Takes time period and EventFilter.
         :returns: a link to the page with matches history
          """
-        return f"{BASE}/stats/players/matches/{self.key}/{self.name}?startDate={start}&endDate={end}"
+        return f"{BASE}/stats/players/matches/{self.key}/{self.name}?startDate={start}&endDate={end}" \
+               f"&matchType={fil.value}&rankingFilter=Top50"
 
     def matches_link(self, event_key: int) -> str:
         """ :returns: a link to the player's matches at a provided event"""
 
-        return f"{BASE}/stats/players/matches/{self.key}/{self.name}?event={event_key}"
+        return f"{BASE}/stats/players/matches/{self.key}/{self.name}?event={event_key}&rankingFilter=Top50"
 
     @set_timeout(TIMEOUT)
     def get_events(self, start: dt.date, end: dt.date) -> List[int]:
@@ -101,7 +102,7 @@ class Player:
         return list(set(_events))
 
     @set_timeout(TIMEOUT)
-    def get_stats(self, start: dt.date, end: dt.date, fil: EventFilter) -> float:
+    def get_stats(self, start: dt.date, end: dt.date, fil: EventFilter) -> Tuple[float, float]:
         """
         Takes (time period, EventFilter).
         :returns: rating
@@ -112,9 +113,9 @@ class Player:
         _stats = _src.find("div", class_="summary").find_all("div", class_="value")
 
         if not bool(_stats[1].text[:-1]):
-            return 0
+            return 0, 0
 
-        return float(_stats[0].text)
+        return float(_stats[0].text), float(_stats[1].text[:-1])
 
     @set_timeout(TIMEOUT)
     def calc_pts(self, event_key: int) -> float:
@@ -146,10 +147,11 @@ class Player:
         """
 
         _data = []
-        _cols = ["player", "event", "avg rank", "all events rating", "big events rating", "pts"]
+        _cols = ["player", "event", "avg rank", "all events rating", "big events rating", "all events wr", "big events wr", "pts"]
         _types = {
             "player": np.str, "event": np.str, "avg rank": np.float32,
-            "all events rating": np.float32, "big events rating": np.float32, "pts": np.float32
+            "all events rating": np.float32, "big events rating": np.float32,
+            "all events wr": np.float32, "big events wr": np.float32, "pts": np.float32
         }
 
         print(f"TESTING: {self.name}")
@@ -163,14 +165,17 @@ class Player:
             print(f"GETTING: {self.name} --> {_key}")
             try:
                 _event = Event(_key)
-                _pts = self.calc_pts(_key)
 
-                _all_rating = self.get_stats(_event.start - delta, _event.start - dt.timedelta(1), EventFilter.ALL)
-                _big_rating = self.get_stats(_event.start - delta, _event.start - dt.timedelta(1), EventFilter.BIG)
+                if _event.rank > 45:
+                    continue
+
+                _pts = self.calc_pts(_key)
+                _all_rating, _all_wr = self.get_stats(_event.start - delta, _event.start - dt.timedelta(1), EventFilter.ALL)
+                _big_rating, _big_wr = self.get_stats(_event.start - delta, _event.start - dt.timedelta(1), EventFilter.BIG)
 
                 _ev_data = np.array([_event.name, _event.rank])
-
-                _data.append(np.array([self.name, _event.name, _event.rank, _all_rating, _big_rating, _pts]))
+                print(f"rating: {_all_rating} / {_big_rating} wr: {_all_wr} / {_big_wr}")
+                _data.append(np.array([self.name, _event.name, _event.rank, _all_rating, _big_rating, _all_wr, _big_wr, _pts]))
 
             except Exception as ex:
                 print(f"FAILED: {str(ex)}")
