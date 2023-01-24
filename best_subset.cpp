@@ -20,8 +20,15 @@ void go(int cur, int taken, float pts, int moneyLeft) {
     }
     if (moneyLeft <= 140 || cur == static_cast<int>(data.size())) return;
     if (data[cur].second <= moneyLeft) {
-        current[taken] = cur;
-        go(cur + 1, taken + 1, pts + data[cur].first, moneyLeft - data[cur].second);
+        if (taken >= 2) {
+            if (current[taken - 1] / 5 != current[taken - 2] / 5 || current[taken - 1] / 5 != cur / 5) {
+                current[taken] = cur;
+                go(cur + 1, taken + 1, pts + data[cur].first, moneyLeft - data[cur].second);
+            }
+        else {
+            current[taken] = cur;
+            go(cur + 1, taken + 1, pts + data[cur].first, moneyLeft - data[cur].second);
+        }
     }
     go(cur + 1, taken, pts, moneyLeft);
 }
