@@ -1,0 +1,34 @@
+featres
+
+	team features:
+		if any roster changes last x days (https://www.hltv.org/team/4411/ninjas-in-pyjamas#tab-rosterBox)
+		world ranking
+		(?) world ranking change 
+		weeks in top30 for core
+		avg events placement last x days
+		avg team rating without igl
+		%winrate last x days
+		current winstreak during last x days
+
+	individual features:
+		filtered:
+			(https://www.hltv.org/stats/players/individual/15165/blamef?startDate=all)
+			rating 
+			dpr
+			kast
+			impact
+			adr
+			kpr
+			headshot %
+			k/d Ratio
+			grenade dmg / Round
+			maps played
+			assists / round
+			avg rounds per game = (Rounds played / Maps played)
+			Opening kill ratio
+			Opening kill rating
+			1vX winrate% 
+		rest:
+			awp/not awp (sniper kills / rifle kills > const)
+			igl/not igl 
+			cnt days in current team (https://www.hltv.org/team/4411/ninjas-in-pyjamas#tab-rosterBox)u
