@@ -1,58 +1,20 @@
 import datetime as dt
-import time
-from enum import Enum
-from typing import List, Union, Dict, Tuple
+from typing import List, Union, Tuple
 import re
 import numpy as np
 import pandas as pd
-import requests
 from bs4 import BeautifulSoup
 from selenium import webdriver
- 
-BASE = "https://www.hltv.org"
-TIMEOUT = 2
-HEADERS = {
-    "Accept":
-        "*/*",
-    "User-agent":
-        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/103.0.0.0 "
-        "Safari/537.36"
-}
- 
-def set_timeout(timeout: float):
-    """ Controls the frequency of calling parsing functions. """
- 
-    def decorator(f):
-        last_call = 0
- 
-        def handler(*args, **kwargs):
-            nonlocal last_call
-            delta = time.time() - last_call
-            if delta < timeout:
-                time.sleep(timeout - delta)
-            last_call = time.time()
-            return f(*args, **kwargs)
- 
-        return handler
- 
-    return decorator
- 
- 
-class EventFilter(Enum):
-    """ Filter for tournaments tier differentiating. """
- 
-    ALL = "ALL"
-    LAN = "Lan"
-    BIG = "BigEvents"
-    MAJORS = "Majors"
- 
- 
-class FantasyError(Enum):
-    INVALID_TIME = ValueError("Wrong time period passed.")
-    INVALID_EVENT = ValueError("Wrong event key provided. Crashed in Event init.")
-    NO_DATA = ValueError("No data found. Crashed in calc_pts().")
-    INVALID_ARGUMENTS = ValueError("Wrong number or type of arguments passed.")
- 
+from event import Event
+from common import (
+    EventFilter,
+    set_timeout,
+    FantasyError,
+    BASE,
+    TIMEOUT
+)
+
+
 class Player:
  
     def __init__(self, key: int, name: str):
@@ -119,7 +81,7 @@ class Player:
         dr.get(_url)
         _src = BeautifulSoup(dr.page_source, "html.parser")
         # _src = BeautifulSoup(requests.get(_url, headers=HEADERS).text, "html.parser")
-        stats = _src.find("div", class_="summary").find_all("div", class_="value")
+        _stats = _src.find("div", class_="summary").find_all("div", class_="value")
  
         if not bool(_stats[1].text[:-1]):
             return 0, 0
@@ -197,97 +159,3 @@ class Player:
         print(f"OK: {len(_data)}")
         print(f"FAILED: {len(_events) - len(_data)}")
         return pd.DataFrame(_data, columns=_cols).astype(_types)
- 
- 
-class Event:
- 
-    @set_timeout(TIMEOUT)
-    def __init__(self, key: int):
- 
-        self.key = key
- 
-        def _name(source: BeautifulSoup) -> str:
-            return source.find("h1", class_="event-hub-title").text
- 
-        def _rank(source: BeautifulSoup) -> float:
-            _ranks = source.find_all("div", class_="event-world-rank")
-            return 0 if not _ranks else sum(
-                int(rank.text[1:]) for rank in _ranks) / len(_ranks)
- 
-        def _dates(table) -> Tuple[dt.date, dt.date]:
-            _months = {
-                "Jan": 1,
-                "Feb": 2,
-                "Mar": 3,
-                "Apr": 4,
-                "May": 5,
-                "Jun": 6,
-                "Jul": 7,
-                "Aug": 8,
-                "Sep": 9,
-                "Oct": 10,
-                "Nov": 11,
-                "Dec": 12
-            }
-            _items = table[0].text.split(" ")
-            _start = dt.date(int(_items[2]), _months[_items[0]],
-                             int(_items[1][:-2]))
-            _items = table[1].text.split(" ")
-            _end = dt.date(int(_items[2]), _months[_items[0]],
-                           int(_items[1][:-2]))
-            return _start, _end
- 
-        dr = webdriver.Chrome()
-        dr.get(self.event_info_link())
-        _src = BeautifulSoup(dr.page_source, "html.parser")
-        # _src = BeautifulSoup(requests.get(self.event_info_link(), headers=HEADERS).text, "html.parser")
- 
-        _table = _src.find("table", class_="table eventMeta")
-        if _table is None or len(_table.find_all("td")) != 5:
-            raise FantasyError.INVALID_EVENT.value
- 
-        _table = _table.find_all("td")
-        self.name = _name(_src)
-        self.rank = round(_rank(_src), 3)
-        self.start, self.end = _dates(_table)
- 
-    def __eq__(self, other):
-        if isinstance(other, Event):
-            return self.key == other.key
-        return False
- 
-    def event_info_link(self) -> str:
-        """ :returns: a link to the event page """
- 
-        return f"https://www.hltv.org/events/{self.key}/event"
- 
-    @set_timeout(TIMEOUT)
-    def get_players(self) -> List[Player]:
-        """ :returns: a list of Player objects """
- 
-        dr = webdriver.Chrome()
-        dr.get(self.event_info_link())
-        _src = BeautifulSoup(dr.page_source, "html.parser")
-        # src = BeautifulSoup(requests.get(self.event_info_link(), headers=HEADERS).text, "html.parser")
-        _result = []
-        for team_box in _src.find_all("div", class_="lineup-box hidden"):
-            for pl_link in team_box.find_all("a"):
-                _items = pl_link.get("href").split("/")
-                _result.append(
-                    Player(key=int(_items[-2]), name=_items[-1].lower()))
-        return _result
- 
-    @set_timeout(TIMEOUT)
-    def get_costs(self, file_name: str) -> Dict[str, int]:
-        with open(file_name, "r") as file:
-            _src = BeautifulSoup(file.read(), "html.parser")
-        _costs = dict()
-        try:
-            for box in _src.find_all("div", "teamPlayer"):
-                _name = box.find("div", class_="player-card-container").text.lower()
-                _cost = int(box.find("div", class_="playerButtonText").text.split(",")[0][1:])
-                _costs[_name] = _cost
-        except Exception as ex:
-            print(f"FAILED: {str(ex)}")
-            return {}
-        return _costs_
