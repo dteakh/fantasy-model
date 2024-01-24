@@ -5,13 +5,14 @@ import numpy as np
 import pandas as pd
 from bs4 import BeautifulSoup
 from selenium import webdriver
+from event import Event
 from common import (
     EventFilter,
     set_timeout,
     FantasyError,
-    Event,
     BASE,
-    TIMEOUT)
+    TIMEOUT
+)
 
 
 class Player:
@@ -80,7 +81,7 @@ class Player:
         dr.get(_url)
         _src = BeautifulSoup(dr.page_source, "html.parser")
         # _src = BeautifulSoup(requests.get(_url, headers=HEADERS).text, "html.parser")
-        stats = _src.find("div", class_="summary").find_all("div", class_="value")
+        _stats = _src.find("div", class_="summary").find_all("div", class_="value")
  
         if not bool(_stats[1].text[:-1]):
             return 0, 0
