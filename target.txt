@@ -1,0 +1,19 @@
+
+points = (enp * max_matches) * (9 * win_prob - 3 + (100 * (rating2.0 - 1)) // 2)
+
+         played * rating2.0 + 6 * wins - 3 * losses
+
+teams:
+    1. win_prob := wins / played = prob of winning a match
+    2. enp := expected_normed_played :=  played / max_matches = share of played matches over all matches
+
+players:
+    1. rating2.0
+
+
+    max_matches:
+        training:
+            max(team1_played, ... teamN_played)
+
+        prediction:
+            hardcore

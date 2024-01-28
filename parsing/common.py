@@ -1,13 +1,12 @@
 import time
 from enum import Enum
 
-
 BASE = "https://www.hltv.org"
 TIMEOUT = 2
 
 
 def set_timeout(timeout: float):
-    """ Controls the frequency of calling parsing functions. """
+    """Controls the frequency of calling parsing functions."""
 
     def decorator(f):
         last_call = 0
@@ -26,7 +25,7 @@ def set_timeout(timeout: float):
 
 
 class EventFilter(Enum):
-    """ Filter for tournaments tier differentiating. """
+    """Filter for tournaments tier differentiating."""
 
     ALL = "ALL"
     LAN = "Lan"
