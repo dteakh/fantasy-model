@@ -1,11 +1,12 @@
 import datetime as dt
+from typing import Dict, List, Tuple
 
-from typing import Dict, Tuple, List
 from bs4 import BeautifulSoup
 from selenium import webdriver
-from players import Player
-from teams import Team
-from common import TIMEOUT, set_timeout
+
+from parsing.common import TIMEOUT, FantasyError, set_timeout
+from parsing.players import Player
+from parsing.team import Team
 
 
 class Event:
@@ -20,8 +21,11 @@ class Event:
 
         def _rank(source: BeautifulSoup) -> float:
             _ranks = source.find_all("div", class_="event-world-rank")
-            return 0 if not _ranks else sum(
-                int(rank.text[1:]) for rank in _ranks) / len(_ranks)
+            return (
+                0
+                if not _ranks
+                else sum(int(rank.text[1:]) for rank in _ranks) / len(_ranks)
+            )
 
         def _dates(table) -> Tuple[dt.date, dt.date]:
             _months = {
@@ -36,14 +40,12 @@ class Event:
                 "Sep": 9,
                 "Oct": 10,
                 "Nov": 11,
-                "Dec": 12
+                "Dec": 12,
             }
             _items = table[0].text.split(" ")
-            _start = dt.date(int(_items[2]), _months[_items[0]],
-                             int(_items[1][:-2]))
+            _start = dt.date(int(_items[2]), _months[_items[0]], int(_items[1][:-2]))
             _items = table[1].text.split(" ")
-            _end = dt.date(int(_items[2]), _months[_items[0]],
-                           int(_items[1][:-2]))
+            _end = dt.date(int(_items[2]), _months[_items[0]], int(_items[1][:-2]))
             return _start, _end
 
         dr = webdriver.Chrome()
@@ -66,13 +68,13 @@ class Event:
         return False
 
     def event_info_link(self) -> str:
-        """ :returns: a link to the event page """
+        """:returns: a link to the event page"""
 
         return f"https://www.hltv.org/events/{self.key}/event"
 
     @set_timeout(TIMEOUT)
     def get_players(self) -> List[Player]:
-        """ :returns: a list of Player objects """
+        """:returns: a list of Player objects"""
 
         dr = webdriver.Chrome()
         dr.get(self.event_info_link())
@@ -82,13 +84,23 @@ class Event:
         for team_box in _src.find_all("div", class_="lineup-box hidden"):
             for pl_link in team_box.find_all("a"):
                 _items = pl_link.get("href").split("/")
-                _result.append(
-                    Player(key=int(_items[-2]), name=_items[-1].lower()))
+                _result.append(Player(key=int(_items[-2]), name=_items[-1].lower()))
         return _result
 
     @set_timeout(TIMEOUT)
-    def get_teams(self, file_name: str) -> Dict[str, int]:
-        ...
+    def get_teams(self) -> List[Team]:
+        dr = webdriver.Chrome()
+        dr.get(self.event_info_link())
+        src = BeautifulSoup(dr.page_source, "html.parser")
+
+        result = []
+        for team_box in src.find_all("div", class_="team-name"):
+            for team_link in team_box.find_all("a"):
+                team_attrs = team_link.get("href").split("/")
+                team_key, team_name = team_attrs[2], team_attrs[3]
+                result.append(Team(key=team_key, name=team_name))
+
+        return result
 
     @set_timeout(TIMEOUT)
     def get_costs(self, file_name: str) -> Dict[str, int]:
@@ -98,7 +110,9 @@ class Event:
         try:
             for box in _src.find_all("div", "teamPlayer"):
                 _name = box.find("div", class_="player-card-container").text.lower()
-                _cost = int(box.find("div", class_="playerButtonText").text.split(",")[0][1:])
+                _cost = int(
+                    box.find("div", class_="playerButtonText").text.split(",")[0][1:]
+                )
                 _costs[_name] = _cost
         except Exception as ex:
             print(f"FAILED: {str(ex)}")
