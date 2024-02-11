@@ -1,3 +1,6 @@
+from _constants import TeamStat
+
+
 class Team:
     def __init__(self, key: int, name: str):
         self.key = key
@@ -15,4 +18,5 @@ class Team:
         return f"{self.name} ({self.key})"
 
     from ._links import get_profile_link, get_stat_link
+    from ._preprocessing import preprocess_stats
     from ._stats import get_stats
