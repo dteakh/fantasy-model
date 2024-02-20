@@ -49,6 +49,7 @@ class FantasyError(Enum):
     INVALID_EVENT = ValueError("Wrong event key provided. Crashed in Event init.")
     NO_DATA = ValueError("No data found. Crashed in calc_pts().")
     INVALID_ARGUMENTS = ValueError("Wrong number or type of arguments passed.")
+    SOMETHING_WENT_WRONG = "Unexpected behaviour (e.g. invalid number of arguments found)"
 
     def __str__(self):
         return self.value
