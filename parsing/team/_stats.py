@@ -3,11 +3,9 @@ from datetime import timedelta as td
 from typing import Dict, List, Union
 
 from bs4 import BeautifulSoup
-from selenium import webdriver
-
 from parsing.common import EventFilter, RankingFilter
-
-from ._constants import TeamStat
+from parsing.team._constants import TeamStat
+from selenium import webdriver
 
 
 def _get_tag(field, tag, **kwargs) -> Union[str, None]:

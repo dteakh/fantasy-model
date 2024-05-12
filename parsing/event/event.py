@@ -2,11 +2,10 @@ import datetime as dt
 from typing import Dict, List, Tuple
 
 from bs4 import BeautifulSoup
-from selenium import webdriver
-
 from parsing.common import TIMEOUT, FantasyError, set_timeout
 from parsing.players import Player
 from parsing.team import Team
+from selenium import webdriver
 
 
 class Event:

@@ -1,4 +1,4 @@
-from _constants import TeamStat
+from parsing.team._constants import TeamStat
 
 
 class Team:

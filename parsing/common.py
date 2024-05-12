@@ -37,19 +37,37 @@ class EventFilter(Enum):
 
 
 class RankingFilter(Enum):
+    """Filter for differentiating rank."""
+
     ALL = "ALL"
+    TOP5 = "Top5"
+    TOP10 = "Top10"
+    TOP20 = "Top20"
+    TOP30 = "Top30"
     TOP50 = "Top50"
 
     def __str__(self):
         return self.value
 
 
-class FantasyError(Enum):
-    INVALID_TIME = ValueError("Wrong time period passed.")
-    INVALID_EVENT = ValueError("Wrong event key provided. Crashed in Event init.")
-    NO_DATA = ValueError("No data found. Crashed in calc_pts().")
-    INVALID_ARGUMENTS = ValueError("Wrong number or type of arguments passed.")
-    SOMETHING_WENT_WRONG = "Unexpected behaviour (e.g. invalid number of arguments found)"
+class FantasyError:
 
-    def __str__(self):
-        return self.value
+    @staticmethod
+    def no_data(msg: str = ""):
+        return ValueError(f"No data found: {msg}")
+
+    @staticmethod
+    def invalid_time(msg: str = ""):
+        return ValueError(f"Wrong time period passed: {msg}")
+
+    @staticmethod
+    def invalid_event(msg: str = ""):
+        return ValueError(f"Wrong event key passed: {msg}")
+
+    @staticmethod
+    def invalid_arguments(msg: str = ""):
+        return ValueError(f"Wrong number or type of arguments passed: {msg}")
+
+    @staticmethod
+    def something_went_wrong(msg: str = ""):
+        return ValueError(f"Unexpected behaviour: {msg}")
