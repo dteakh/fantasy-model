@@ -1,5 +1,5 @@
-from common import EventFilter, RankingFilter, TeamStat
-from team import Team
+from common import EventFilter, RankingFilter
+from team import Team, TeamStat
 
 
 def test_team_class():

@@ -1,20 +1,21 @@
 from datetime import date
 from datetime import timedelta as td
-from typing import Dict, Union
+from typing import Dict, List, Union
 
 from bs4 import BeautifulSoup
+from parsing.common import EventFilter, RankingFilter
+from parsing.team._constants import TeamStat
 from selenium import webdriver
 
-from parsing.common import EventFilter, RankingFilter
 
-from ._constants import TeamStat
-
-
-def _get_tag(field, tag, class_=None, attrs=None) -> Union[str, None]:
-    if field is None or field.find(tag, class_=class_, attrs=attrs) is None:
+def _get_tag(field, tag, **kwargs) -> Union[str, None]:
+    if field is None:
         return None
+    result = field.find(tag, **kwargs)
 
-    return field.find(tag, class_=class_, attrs=attrs).text
+    if result is None:
+        return None
+    return result.text
 
 
 # @set_timeout(TIMEOUT)
@@ -25,7 +26,16 @@ def get_stats(
     event: int = None,
     match: EventFilter = EventFilter.ALL,
     rank: RankingFilter = RankingFilter.ALL,
-) -> Dict[str, Dict[str, str]]:
+) -> Dict[str, Union[Dict[str, str], List[Dict[str, str]]]]:
+    """Method collects raw statistics about team within given period and filters.
+    :param start: start of period.
+    :param end: end of period.
+    :param event: optional, key of event to restrict statistics to.
+    :param match: optional, type of events to consider (collision with 'event',
+                            but this is HLTV terminology).
+    :param rank: optional, matches against top-X commands to consider only.
+    """
+
     stats = {}
 
     # profile
@@ -36,7 +46,7 @@ def get_stats(
     profile = {}
     for ts in src.find_all("div", class_="profile-team-stat"):
         stat_name = _get_tag(ts, "b")
-        stat_value = _get_tag(ts, "span", "right")
+        stat_value = _get_tag(ts, "span", class_="right")
         if stat_value is None:
             stat_value = _get_tag(ts, "a")
         profile[stat_name] = stat_value
@@ -54,8 +64,8 @@ def get_stats(
 
     overview = {}
     for ts in src.find_all("div", class_="col standard-box big-padding"):
-        stat_name = _get_tag(ts, "div", "small-label-below")
-        stat_value = _get_tag(ts, "div", "large-strong")
+        stat_name = _get_tag(ts, "div", class_="small-label-below")
+        stat_value = _get_tag(ts, "div", class_="large-strong")
         overview[stat_name] = stat_value
 
     stats["overview"] = overview
@@ -125,12 +135,18 @@ def get_stats(
     lineups = []
 
     for lineup in src.find_all("div", class_="lineup-container"):
-        data = {
-            "period": _get_tag(lineup, "div", class_="lineup-year"),
-            "period-unix": lineup.find("div", class_="lineup-year")
-            .find("span")
-            .get("data-unix"),
-        }
+        spans = lineup.find("div", class_="lineup-year").find_all("span", class_=None)
+        for span in spans:
+            print(span)
+            print(span.text)
+        if len(spans) > 1:
+            period = spans[0].text + " - " + spans[1].text
+            period_unix = spans[0].get("data-unix") + " - " + spans[1].get("data-unix")
+        else:
+            period = spans[0].text + " - today"
+            period_unix = spans[0].get("data-unix") + " - today"
+
+        data = {"period": period, "period_unix": period_unix}
 
         for ts in lineup.find_all("div", class_="col standard-box big-padding"):
             stat_name = _get_tag(ts, "div", class_="small-label-below")

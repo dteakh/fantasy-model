@@ -1,5 +1,5 @@
 
-points = (enp * max_matches) * (9 * win_prob - 3 + (100 * (rating2.0 - 1)) // 2)
+points = (enp * max_matches) * (9 * win_prob - 3 + (100 * (rating2.0 - 1)) // 4)
 
          played * rating2.0 + 6 * wins - 3 * losses
 
