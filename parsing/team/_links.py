@@ -17,8 +17,8 @@ def get_stat_link(
     self,
     stat: TeamStat,
     event: int = None,
-    start: Union[str, date] = date.today() - td(weeks=12),
-    end: Union[str, date] = date.today(),
+    start: date = date.today() - td(weeks=12),
+    end: date = date.today(),
     match: EventFilter = EventFilter.ALL,
     rank: RankingFilter = RankingFilter.ALL,
 ):
@@ -27,8 +27,14 @@ def get_stat_link(
     link = (
         f"{BASE}/stats/teams/"
         f"{stat}/{self.key}/{self.name}"
-        f"?startDate={start}&endDate={end}"
     )
+    if start is not None:
+        link += f"?startDate={start}"
+    else:
+        link += f"?startDate=all"
+
+    if end is not None:
+        link += f"&endDate={end}"
 
     if event is not None:
         link += f"&event={event}"

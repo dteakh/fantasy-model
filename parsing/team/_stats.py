@@ -91,6 +91,7 @@ def get_stats(
                 "map": _get_tag(m.find("td", class_="statsMapPlayed"), "span"),
                 "rounds": _get_tag(m, "span", class_="statsDetail"),
                 "result": m.find_all("td")[-1].text,
+                "is_last_map": 1 if 'first' in m.get("class") else 0
             }
         )
 
@@ -118,6 +119,7 @@ def get_stats(
             {
                 "placement": _get_tag(e, "td", class_="statsCenterText"),
                 "event": e.find_all("span")[0].text,
+                "event_filter": match  # used later
             }
         )
 
@@ -136,9 +138,6 @@ def get_stats(
 
     for lineup in src.find_all("div", class_="lineup-container"):
         spans = lineup.find("div", class_="lineup-year").find_all("span", class_=None)
-        for span in spans:
-            print(span)
-            print(span.text)
         if len(spans) > 1:
             period = spans[0].text + " - " + spans[1].text
             period_unix = spans[0].get("data-unix") + " - " + spans[1].get("data-unix")

@@ -20,3 +20,4 @@ class Team:
     from ._links import get_profile_link, get_stat_link
     from ._preprocessing import preprocess_stats
     from ._stats import get_stats
+    from ._features import get_features
