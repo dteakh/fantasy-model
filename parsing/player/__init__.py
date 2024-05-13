@@ -3,7 +3,13 @@ from parsing.player._constants import PlayerStat
 
 class Player:
 
-    def __init__(self, key: int, name: str = "nonexistent"):
+    def __init__(self, key: int, name: str = "unknown"):
+        """
+        Class implements methods to parse data regarding a player.
+        :param key: player's HLTV id
+        :param name: player's nickname
+        """
+
         self.key = key
         self.name = name
 

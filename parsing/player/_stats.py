@@ -105,6 +105,14 @@ def get_individual_stats(
     event_fil: EventFilter = EventFilter.ALL,
     ranking_fil: RankingFilter = RankingFilter.ALL,
 ) -> Dict[str, Union[int, float, None]]:
+    """
+    Method collects individual stats of the player.
+    :param event_key: key of the event.
+    :param start_time: start of time period.
+    :param end_time: end of time period
+    :param event_fil: filter events type.
+    :param ranking_fil: filter opponents.
+    """
 
     data = {}
     dr = webdriver.Chrome()
@@ -148,6 +156,14 @@ def get_clutch_stats(
     event_fil: EventFilter = EventFilter.ALL,
     ranking_fil: RankingFilter = RankingFilter.ALL,
 ) -> Dict[str, Union[int, float, None]]:
+    """
+    Method collects clutch stats of the player.
+    :param event_key: key of the event.
+    :param start_time: start of time period.
+    :param end_time: end of time period
+    :param event_fil: filter events type.
+    :param ranking_fil: filter opponents.
+    """
 
     data = {}
     dr = webdriver.Chrome()
@@ -241,6 +257,14 @@ def get_stats(
     event_fil: EventFilter = EventFilter.ALL,
     ranking_fil: RankingFilter = RankingFilter.ALL,
 ) -> Dict[str, Union[int, float, None]]:
+    """
+    Method collects overview, individual and clutch stats of the player.
+    :param event_key: key of the event.
+    :param start_time: start of time period.
+    :param end_time: end of time period
+    :param event_fil: filter events type.
+    :param ranking_fil: filter opponents.
+    """
 
     data: Dict[str, Union[int, float, None]] = {}
     data.update(
