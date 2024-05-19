@@ -2,6 +2,7 @@ Due to HLTV Fantasy padding system (simplified version):
 
 Features: personal stats + team stats + event info
 Modelling targets: expected points gain per game (pts), expected winrate at the event (wr)
+Formula for pts: (rating - 1) // 4 for bo1, (rating - 1) // 2 for bo3, 3 * (rating - 1) // 4 for bo5
 
 Player's performance formula: pts + 6 * wr - 3 * (1 - wr) = pts + 9 * wr - 3
 Solve the knapsack problem: maximize sum of performances given the constraints
