@@ -24,11 +24,18 @@ class Player:
     def __str__(self):
         return f"{self.name} ({self.key})"
 
-    from ._links import get_stat_link
-    from ._stats import (
-        get_clutch_stats,
-        get_individual_stats,
-        get_matches_stats,
-        get_overview_stats,
-        get_stats,
+    from parsing.player._links import get_stat_link
+
+    from parsing.player._extractor import (
+        extract_overview_stats,
+        extract_clutches_stats,
+        extract_individual_stats,
+        extract_matches_stats,
+    )
+
+    from parsing.player._parser import (
+        get_overview_page,
+        get_clutches_page,
+        get_individual_page,
+        get_matches_page,
     )
