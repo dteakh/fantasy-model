@@ -33,9 +33,4 @@ class Player:
         extract_matches_stats,
     )
 
-    from parsing.player._parser import (
-        get_overview_page,
-        get_clutches_page,
-        get_individual_page,
-        get_matches_page,
-    )
+    from parsing.player._parser import get_page
