@@ -1,13 +1,16 @@
 import os.path
 import re
 
+from bs4 import BeautifulSoup
 from typing import Dict, List, Tuple, Union
 
-from bs4 import BeautifulSoup
+from parsing.player import Player
 from parsing.common import FantasyError
 
 
-def extract_overview_stats(self, path: str) -> Dict[str, Union[int, float, None]]:
+def extract_overview_stats(
+    self: Player, path: str
+) -> Dict[str, Union[int, float, None]]:
     """
     Method collects overview stats for a player.
     :param path: absolute path to the overview page
@@ -77,7 +80,9 @@ def extract_overview_stats(self, path: str) -> Dict[str, Union[int, float, None]
     return data
 
 
-def extract_individual_stats(self, path: str) -> Dict[str, Union[int, float, None]]:
+def extract_individual_stats(
+    self: Player, path: str
+) -> Dict[str, Union[int, float, None]]:
     """
     Method collects individual stats for a player.
     :param path: absolute path to the overview page
@@ -112,7 +117,9 @@ def extract_individual_stats(self, path: str) -> Dict[str, Union[int, float, Non
     return data
 
 
-def extract_clutches_stats(self, path: str) -> Dict[str, Union[int, float, None]]:
+def extract_clutches_stats(
+    self: Player, path: str
+) -> Dict[str, Union[int, float, None]]:
     """
     Method collects clutches stats for a player.
     :param path: absolute path to the overview page
@@ -142,7 +149,7 @@ def extract_clutches_stats(self, path: str) -> Dict[str, Union[int, float, None]
     return data
 
 
-def extract_matches_stats(self, path: str) -> List[Tuple[bool, List[float]]]:
+def extract_matches_stats(self: Player, path: str) -> List[Tuple[bool, List[float]]]:
     """
     Method collects matches stats for a player.
     :param path: absolute path to the overview page

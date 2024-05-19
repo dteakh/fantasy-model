@@ -5,12 +5,12 @@ from datetime import timedelta as td
 from typing import Union
 from selenium import webdriver
 
+from parsing.player import Player, PlayerStat
 from parsing.common import EventFilter, RankingFilter
-from parsing.player._constants import PlayerStat
 
 
 def get_page(
-    self,
+    self: Player,
     page_type: PlayerStat,
     path: str = None,
     event_key: int = None,
