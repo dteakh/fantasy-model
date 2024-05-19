@@ -14,13 +14,11 @@ Structure:
     eventName
        \__ players
               \__ playerName
-                     \__ clutches
-                         events
+                     \__ events
+                         clutches
+                         overview
                          individual
                          matches
-                         opponents
-                         overview
-                         profile
             
        \__ teams
               \__ teamName
