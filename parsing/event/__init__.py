@@ -43,6 +43,6 @@ class Event:
     def __str__(self):
         return f"{self.name} ({self.key})"
 
+    from parsing.event._extractor import extract_main_page
     from parsing.event._links import get_event_link
     from parsing.event._parser import get_event_page
-    from parsing.event._extractor import extract_main_page

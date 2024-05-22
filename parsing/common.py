@@ -50,6 +50,15 @@ class RankingFilter(Enum):
         return self.value
 
 
+class Ranking(Enum):
+    """Identifier for HLTV ranking pages."""
+
+    TEAMS = "teams"
+
+    def __str__(self):
+        return self.value
+
+
 class FantasyError:
 
     @staticmethod

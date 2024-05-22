@@ -1,11 +1,10 @@
 import os
 import re
-
-from bs4 import BeautifulSoup
 from datetime import datetime
 
-from parsing.team import Team
+from bs4 import BeautifulSoup
 from parsing.common import FantasyError
+from parsing.team import Team
 
 
 def extract_main_page(self, path: str):

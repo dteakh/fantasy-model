@@ -1,25 +1,60 @@
 import re
-from datetime import datetime, date
+from datetime import date, datetime
 from typing import Dict, List, Union
-from dateutil.parser import parse
 
 import numpy as np
+from dateutil.parser import parse
+from parsing.team._constants import (
+    BOTTOM_POINTS,
+    BOTTOM_RANKING_CHANGE,
+    BOTTOM_WORLD_RANKING,
+)
 
 
 def preprocess_stats(
     self, stats: Dict[str, Union[Dict[str, str], List[Dict[str, str]]]]
 ) -> Dict[str, Union[Dict[str, str], List[Dict[str, str]]]]:
     """Applies preprocessing to raw team statistics.
-    :param stats: statistics from `team._stats.get_stats` method"""
+    :param stats: statistics from `team._extractor` methods"""
+
     preprocessed_stats = {
-        "profile": _preprocess_profile(stats["profile"]),
+        # "profile": _preprocess_profile(stats["profile"]),
+        "ranking": _preprocess_ranking(stats["ranking"]),
         "overview": _preprocess_overview(stats["overview"]),
         "matches": _preprocess_matches(stats["matches"]),
         "events": _preprocess_events(stats["events"]),
         "lineups": _preprocess_lineups(stats["lineups"]),
     }
 
+    for lineup in preprocessed_stats["lineups"]:
+        if lineup["is_active"]:
+            self.players = lineup["players"]
+
     return preprocessed_stats
+
+
+def _preprocess_ranking(ranking: Dict[str, str]) -> Dict[str, str]:
+    data = dict()
+    if ranking["world_ranking"] is not None:
+        data["world_ranking"] = np.int32(
+            re.findall(r"[0-9]+", ranking["world_ranking"])[0]
+        )
+
+        rc = ranking["ranking_change"].strip()
+        if rc == "-":
+            data["ranking_change"] = 0
+        else:
+            data["ranking_change"] = np.int32(re.findall(r"[0-9]+", rc)[0])
+            data["ranking_change"] *= (-1) if rc[0] == "-" else (+1)
+
+        data["points"] = np.int32(re.findall(r"[0-9]+", ranking["points"])[0])
+    else:
+        # TODO discuss
+        data["world_ranking"] = BOTTOM_WORLD_RANKING
+        data["ranking_change"] = BOTTOM_RANKING_CHANGE
+        data["points"] = BOTTOM_POINTS
+
+    return data
 
 
 def _preprocess_profile(profile: Dict[str, str]) -> Dict[str, str]:
@@ -47,7 +82,9 @@ def _preprocess_overview(overview: Dict[str, str]) -> Dict[str, str]:
     data["kills"] = np.int32(overview["Total kills"])
     data["deaths"] = np.int32(overview["Total deaths"])
     data["rounds_played"] = np.int32(overview["Rounds played"])
-    data["team_kd"] = np.float64(overview["K/D Ratio"])
+
+    kd = overview["K/D Ratio"]
+    data["team_kd"] = np.float64(kd) if kd.isdigit() else None
 
     return data
 
@@ -127,7 +164,7 @@ def _preprocess_lineups(lineups: List[Dict[str, str]]) -> List[Dict[str, str]]:
 
         lineup_data["start"] = parse(start) if start != "today" else date.today()
         lineup_data["end"] = parse(end) if end != "today" else date.today()
-        lineup_data["is_active"] = (end == "today")
+        lineup_data["is_active"] = end == "today"
         lineup_data["maps_played"] = np.int32(lineup["Maps played"])
 
         matches_results = lineup["Wins / draws / losses"].split("/")
@@ -135,6 +172,7 @@ def _preprocess_lineups(lineups: List[Dict[str, str]]) -> List[Dict[str, str]]:
         lineup_data["draws"] = np.int32(matches_results[1].strip())
         lineup_data["losses"] = np.int32(matches_results[2].strip())
         lineup_data["lan_top3_placings"] = np.int32(lineup["LAN top 3 placings"])
+        lineup_data["players"] = lineup["players"]
 
         data.append(lineup_data)
 

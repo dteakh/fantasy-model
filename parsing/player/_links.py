@@ -1,12 +1,12 @@
 from datetime import date
 from datetime import timedelta as td
 
-from parsing.player import Player, PlayerStat
 from parsing.common import BASE, EventFilter, RankingFilter
+from parsing.player import PlayerStat
 
 
 def get_stat_link(
-    self: Player,
+    self,
     stat: PlayerStat,
     event_key: int = None,
     start_time: date = date.today() - td(weeks=12),
