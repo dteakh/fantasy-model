@@ -1,4 +1,5 @@
-from parsing.common import BASE
+from typing import List
+from parsing.team import Team
 
 
 class Event:
@@ -20,7 +21,10 @@ class Event:
         self.ends_at = None
         self.duration = None
 
-        self.teams = list()
+        self.teams: List[Team] = []
+
+        page_data = self.get_page(return_page=True)
+        self.extract_main_page(page_data=page_data)
 
     def features_to_dict(self):
         return {
@@ -45,4 +49,4 @@ class Event:
 
     from parsing.event._extractor import extract_main_page
     from parsing.event._links import get_event_link
-    from parsing.event._parser import get_event_page
+    from parsing.event._parser import get_page

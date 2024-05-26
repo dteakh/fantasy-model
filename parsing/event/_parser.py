@@ -3,7 +3,7 @@ import os
 from selenium import webdriver
 
 
-def get_event_page(self, path: str = None, return_page: bool = False):
+def get_page(self, path: str = None, return_page: bool = False):
     """
     Method collects main page for an event.
     :param path: saves the page to the absolute path if specified

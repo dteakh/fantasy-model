@@ -1,5 +1,8 @@
+from typing import List
 from parsing.common import Ranking
+from parsing.player import Player
 from parsing.team._constants import TeamProfile, TeamStat
+from parsing.team._preprocessing import _preprocess_lineups
 
 
 class Team:
@@ -7,7 +10,14 @@ class Team:
         self.key = key
         self.name = name
 
-        self.players = list()
+        self.players: List[Player] = []
+
+    def init_lineups(self, path: str):
+        lineups = self.extract_lineups(path)["lineups"]
+        lineups = _preprocess_lineups(lineups)
+        for lineup in lineups:
+            if lineup["is_active"]:
+                self.players = lineup["players"]
 
     def __eq__(self, other):
         if isinstance(other, Team):
@@ -31,6 +41,7 @@ class Team:
     from parsing.team._links import get_profile_link, get_ranking_link, get_stat_link
     from parsing.team._parser import get_page
     from parsing.team._preprocessing import preprocess_stats
+    from parsing.team._extractor import extract_lineups
 
 
 if __name__ == "__main__":

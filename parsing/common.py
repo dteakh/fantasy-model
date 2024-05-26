@@ -1,5 +1,8 @@
 import time
+from datetime import date
+
 from enum import Enum
+from dataclasses import dataclass
 
 BASE = "https://www.hltv.org"
 TIMEOUT = 2
@@ -59,6 +62,14 @@ class Ranking(Enum):
         return self.value
 
 
+@dataclass
+class Config:
+    start_time: date
+    end_time: date
+    event_fil: EventFilter
+    ranking_fil: RankingFilter
+
+
 class FantasyError:
 
     @staticmethod
@@ -80,3 +91,13 @@ class FantasyError:
     @staticmethod
     def something_went_wrong(msg: str = ""):
         return ValueError(f"Unexpected behaviour: {msg}")
+
+
+def get_page_name(page_type: str, cfg: Config) -> str:
+    """
+    Maps parsed page to its name.
+    :param page_type: type (name) of the page
+    :param cfg: filters used to parse the page
+    :returns: page name
+    """
+    return f"{page_type}_{str(cfg.start_time)}_{str(cfg.end_time)}_{cfg.event_fil.value}_{cfg.ranking_fil.value}.html"

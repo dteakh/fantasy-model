@@ -7,17 +7,19 @@ from parsing.common import FantasyError
 from parsing.team import Team
 
 
-def extract_main_page(self, path: str):
+def extract_main_page(self, path: str = None, page_data: str = None):
     """
     Method initializes object with main info regarding an event.
     :param path: absolute path to the event page
+    :param page_data: page content instead of path
     """
 
-    if not os.path.isfile(path):
-        raise FantasyError.invalid_arguments(f"Not found {path}")
+    if not page_data:
+        if not os.path.isfile(path):
+            raise FantasyError.invalid_arguments(f"Not found {path}")
 
-    with open(path, "r", encoding="utf-8") as f:
-        page_data = f.read()
+        with open(path, "r", encoding="utf-8") as f:
+            page_data = f.read()
 
     src = BeautifulSoup(page_data, "html.parser")
     self.name = src.find("h1", class_="event-hub-title").text
