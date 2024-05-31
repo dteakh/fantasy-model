@@ -36,7 +36,7 @@ def parse_event_pages(event: Event, cfgs: List[Config], path: str):
 
     player_pages = [PlayerStat.OVERVIEW, PlayerStat.CLUTCHES, PlayerStat.INDIVIDUAL]
 
-    for team in event.teams[:1]:
+    for team in event.teams:
         team_dir = os.path.join(teams_dir, str(team.key))
         fpath = os.path.join(team_dir, "lineup.html")
         team.get_page(TeamStat.LINEUPS, event=event.key, data_path=fpath)
@@ -82,7 +82,7 @@ def parse_event_pages(event: Event, cfgs: List[Config], path: str):
         event_fil=EventFilter.ALL,
         ranking_fil=RankingFilter.ALL,
     )
-    for team in event.teams[:1]:
+    for team in event.teams:
         team_dir = os.path.join(teams_dir, str(team.key))
         os.makedirs(os.path.dirname(team_dir), exist_ok=True)
         fpath = os.path.join(
