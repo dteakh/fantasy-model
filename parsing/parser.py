@@ -30,12 +30,13 @@ def parse_event_pages(event: Event, cfgs: List[Config], path: str):
         TeamStat.OVERVIEW,
         TeamStat.MATCHES,
         TeamStat.EVENT_HISTORY,
-        TeamProfile.PROFILE,
+        # TeamStat.LINEUPS,   # -- already in init_lineups()
+        # TeamProfile.PROFILE,  # -- deprecated, use Ranking.TEAMS instead
     ]
 
     player_pages = [PlayerStat.OVERVIEW, PlayerStat.CLUTCHES, PlayerStat.INDIVIDUAL]
 
-    for team in event.teams:
+    for team in event.teams[:1]:
         team_dir = os.path.join(teams_dir, str(team.key))
         fpath = os.path.join(team_dir, "lineup.html")
         team.get_page(TeamStat.LINEUPS, event=event.key, data_path=fpath)
@@ -71,13 +72,32 @@ def parse_event_pages(event: Event, cfgs: List[Config], path: str):
                         path=fpath,
                     )
 
+    # separate parsing of TARGET info
+    # winrate for Teams, matches -> points for Players
+    # single config - filtering by event only
+
     cfg = Config(
         start_time=event.starts_at,
         end_time=event.ends_at,
         event_fil=EventFilter.ALL,
         ranking_fil=RankingFilter.ALL,
     )
-    for team in event.teams:
+    for team in event.teams[:1]:
+        team_dir = os.path.join(teams_dir, str(team.key))
+        os.makedirs(os.path.dirname(team_dir), exist_ok=True)
+        fpath = os.path.join(
+            team_dir, get_page_name(str(TeamStat.MATCHES), cfg)
+        )
+        team.get_page(
+            TeamStat.MATCHES,
+            event=event.key,
+            start=cfg.start_time,
+            end=cfg.end_time,
+            match=cfg.event_fil,
+            rank=cfg.ranking_fil,
+            data_path=fpath
+        )
+
         for player in team.players:
             player_dir = os.path.join(players_dir, str(player.key))
             fpath = os.path.join(
