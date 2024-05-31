@@ -5,6 +5,7 @@ from parsing.event import Event
 from parsing.player import PlayerStat
 from parsing.team import TeamProfile, TeamStat
 from parsing.common import Config, get_page_name
+from parsing.common import EventFilter, RankingFilter
 
 
 def parse_event_pages(event: Event, cfgs: List[Config], path: str):
@@ -26,12 +27,13 @@ def parse_event_pages(event: Event, cfgs: List[Config], path: str):
     os.makedirs(os.path.dirname(players_dir), exist_ok=True)
 
     team_pages = [
-        TeamStat.OVERVIEW, TeamStat.MATCHES, TeamStat.EVENT_HISTORY, TeamProfile.PROFILE
+        TeamStat.OVERVIEW,
+        TeamStat.MATCHES,
+        TeamStat.EVENT_HISTORY,
+        TeamProfile.PROFILE,
     ]
 
-    player_pages = [
-        PlayerStat.OVERVIEW, PlayerStat.CLUTCHES, PlayerStat.INDIVIDUAL, PlayerStat.MATCHES
-    ]
+    player_pages = [PlayerStat.OVERVIEW, PlayerStat.CLUTCHES, PlayerStat.INDIVIDUAL]
 
     for team in event.teams:
         team_dir = os.path.join(teams_dir, str(team.key))
@@ -46,10 +48,13 @@ def parse_event_pages(event: Event, cfgs: List[Config], path: str):
             for page_type in team_pages:
                 fpath = os.path.join(team_dir, get_page_name(str(page_type), cfg))
                 team.get_page(
-                    page_type, event=event.key,
-                    start=cfg.start_time, end=cfg.end_time,
-                    match=cfg.event_fil, rank=cfg.ranking_fil,
-                    data_path=fpath
+                    page_type,
+                    event=event.key,
+                    start=cfg.start_time,
+                    end=cfg.end_time,
+                    match=cfg.event_fil,
+                    rank=cfg.ranking_fil,
+                    data_path=fpath,
                 )
 
             for player in team.players:
@@ -58,8 +63,30 @@ def parse_event_pages(event: Event, cfgs: List[Config], path: str):
                 for page_type in player_pages:
                     fpath = os.path.join(player_dir, get_page_name(str(page_type), cfg))
                     player.get_page(
-                        page_type, event_key=event.key,
-                        start_time=cfg.start_time, end_time=cfg.end_time,
-                        event_fil=cfg.event_fil, ranking_fil=cfg.ranking_fil,
-                        path=fpath
+                        page_type,
+                        start_time=cfg.start_time,
+                        end_time=cfg.end_time,
+                        event_fil=cfg.event_fil,
+                        ranking_fil=cfg.ranking_fil,
+                        path=fpath,
                     )
+
+    cfg = Config(
+        start_time=event.starts_at,
+        end_time=event.ends_at,
+        event_fil=EventFilter.ALL,
+        ranking_fil=RankingFilter.ALL,
+    )
+    for team in event.teams:
+        for player in team.players:
+            player_dir = os.path.join(players_dir, str(player.key))
+            fpath = os.path.join(
+                player_dir, get_page_name(str(PlayerStat.MATCHES), cfg)
+            )
+            player.get_page(
+                PlayerStat.MATCHES,
+                event_key=event.key,
+                start_time=event.starts_at,
+                end_time=event.ends_at,
+                path=fpath,
+            )

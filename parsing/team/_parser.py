@@ -46,6 +46,9 @@ def get_page(
     else:
         raise FantasyError.invalid_arguments("page_type")
 
+    if data_path and os.path.isfile(data_path):
+        return
+
     dr = webdriver.Chrome()
     dr.get(link)
 

@@ -41,6 +41,9 @@ def get_page(
         ranking_fil=ranking_fil,
     )
 
+    if path and os.path.isfile(path):
+        return
+
     dr.get(link)
     if path:
         os.makedirs(os.path.dirname(path), exist_ok=True)
