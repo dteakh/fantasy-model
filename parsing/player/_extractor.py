@@ -167,9 +167,13 @@ def calculate_target(matches: List[Tuple[bool, List[float]]]) -> float:
     if not matches or len(matches) == 0:
         return np.nan
 
-    expected_rating = 0
+    expected_pts = 0
     for outcome, ratings in matches:
-        s_ratings = sum(ratings) / max(1, len(ratings))
-        expected_rating += s_ratings
+        expected_rating = sum(ratings) / max(1, len(ratings))
+        print(expected_rating)
+        if len(matches) > 1:
+            expected_pts += (100 * (expected_rating - 1)) // 2
+        else:
+            expected_pts += (100 * (expected_rating - 1)) // 4
 
-    return expected_rating / max(1, len(matches))
+    return expected_pts / max(1, len(matches))
