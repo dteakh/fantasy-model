@@ -31,6 +31,9 @@ def get_page(
     :param return_page: returns page if True
     """
 
+    if path and os.path.isfile(path):
+        return
+
     dr = webdriver.Chrome()
     link = self.get_stat_link(
         stat=page_type,
@@ -40,9 +43,6 @@ def get_page(
         event_fil=event_fil,
         ranking_fil=ranking_fil,
     )
-
-    if path and os.path.isfile(path):
-        return
 
     dr.get(link)
     if path:

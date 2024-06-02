@@ -1,8 +1,10 @@
 import time
+import os
 from datetime import date
 
 from enum import Enum
 from dataclasses import dataclass
+from bs4 import BeautifulSoup, Tag
 
 BASE = "https://www.hltv.org"
 TIMEOUT = 2
@@ -101,3 +103,26 @@ def get_page_name(page_type: str, cfg: Config) -> str:
     :returns: page name
     """
     return f"{page_type}_{str(cfg.start_time)}_{str(cfg.end_time)}_{cfg.event_fil.value}_{cfg.ranking_fil.value}.html"
+
+
+def _read_path(path: str):
+    if not os.path.isfile(path):
+        raise FantasyError.invalid_arguments(f"Not found {path}")
+
+    with open(path, "r", encoding="utf-8") as f:
+        page_source = f.read()
+
+    return BeautifulSoup(page_source, "html.parser")
+
+
+def _get_src(path: str = None, src: Tag = None):
+    """
+    Returns bs4 Tag object, either from 'path' or already valid 'src'.
+    :param path: absolute path to the overview page
+    :param src: HTML/XML part of parsed tree
+    :return: Tag object.
+    """
+    assert (path is not None or src is not None)
+    if src is None:
+        return _read_path(path)
+    return src

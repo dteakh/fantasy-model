@@ -2,8 +2,8 @@ import os
 import re
 from typing import Any, Dict, List, Union
 
-from bs4 import BeautifulSoup
-from parsing.common import EventFilter, FantasyError
+from bs4 import BeautifulSoup, Tag
+from parsing.common import EventFilter, _get_src
 from parsing.player import Player
 
 
@@ -17,16 +17,6 @@ def _get_tag(field, tag, **kwargs) -> Union[str, None]:
     return result.text
 
 
-def _read_path(path: str):
-    if not os.path.isfile(path):
-        raise FantasyError.invalid_arguments(f"Not found {path}")
-
-    with open(path, "r", encoding="utf-8") as f:
-        page_source = f.read()
-
-    return BeautifulSoup(page_source, "html.parser")
-
-
 def _prep_team_name(name):
     name = name.lower()
     name = re.sub(pattern=r"[-_^*]+", repl=" ", string=name)
@@ -35,8 +25,8 @@ def _prep_team_name(name):
     return name
 
 
-def extract_profile(self, path: str) -> Dict[str, Dict[str, Any]]:
-    src = _read_path(path)
+def extract_profile(self, path: str, src: Tag = None) -> Dict[str, Dict[str, Any]]:
+    src = _get_src(path, src)
 
     profile = {}
     for ts in src.find_all("div", class_="profile-team-stat"):
@@ -49,8 +39,8 @@ def extract_profile(self, path: str) -> Dict[str, Dict[str, Any]]:
     return {"profile": profile}
 
 
-def extract_ranking(self, path: str, team_name: str) -> Dict[str, Dict[str, Any]]:
-    src = _read_path(path)
+def extract_ranking(self, path: str, team_name: str, src: Tag = None) -> Dict[str, Dict[str, Any]]:
+    src = _get_src(path, src)
 
     ranking = {}
     for team in src.find_all("div", class_="ranked-team standard-box"):
@@ -77,8 +67,8 @@ def extract_ranking(self, path: str, team_name: str) -> Dict[str, Dict[str, Any]
     return {"ranking": ranking}
 
 
-def extract_overview(self, path: str) -> Dict[str, Dict[str, Any]]:
-    src = _read_path(path)
+def extract_overview(self, path: str, src: Tag = None) -> Dict[str, Dict[str, Any]]:
+    src = _get_src(path, src)
 
     overview = {}
     for ts in src.find_all("div", class_="col standard-box big-padding"):
@@ -89,8 +79,8 @@ def extract_overview(self, path: str) -> Dict[str, Dict[str, Any]]:
     return {"overview": overview}
 
 
-def extract_matches(self, path: str) -> Dict[str, List[Dict[str, Any]]]:
-    src = _read_path(path)
+def extract_matches(self, path: str, src: Tag = None) -> Dict[str, List[Dict[str, Any]]]:
+    src = _get_src(path, src)
 
     matches = []
     st = src.find("table", class_="stats-table no-sort")
@@ -112,9 +102,9 @@ def extract_matches(self, path: str) -> Dict[str, List[Dict[str, Any]]]:
 
 
 def extract_events(
-    self, path: str, match: EventFilter
+    self, path: str, match: EventFilter, src: Tag = None
 ) -> Dict[str, List[Dict[str, Any]]]:
-    src = _read_path(path)
+    src = _get_src(path, src)
 
     events = []
     st = src.find("table", class_="stats-table")
@@ -131,8 +121,8 @@ def extract_events(
     return {"events": events}
 
 
-def extract_lineups(self, path: str) -> Dict[str, List[Dict[str, Any]]]:
-    src = _read_path(path)
+def extract_lineups(self, path: str, src: Tag = None) -> Dict[str, List[Dict[str, Any]]]:
+    src = _get_src(path, src)
 
     lineups = []
     for lineup in src.find_all("div", class_="lineup-container"):

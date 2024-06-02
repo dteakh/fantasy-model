@@ -2,25 +2,20 @@ import os.path
 import re
 from typing import Dict, List, Tuple, Union
 
-from bs4 import BeautifulSoup
+from parsing.common import _get_src
 from parsing.common import FantasyError
+from bs4 import Tag
 
 
-def extract_overview_stats(self, path: str) -> Dict[str, Union[int, float, None]]:
+def extract_overview_stats(self, path: str, src: Tag = None) -> Dict[str, Union[int, float, None]]:
     """
     Method collects overview stats for a player.
     :param path: absolute path to the overview page
+    :param src: HTML/XML part of parsed tree
     :returns: dictionary of pairs (feature_name, feature_value)
     """
-
-    if not os.path.isfile(path):
-        raise FantasyError.invalid_arguments(f"Not found {path}")
-
-    with open(path, "r", encoding="utf-8") as f:
-        page_data = f.read()
-
+    src = _get_src(path, src)
     data = dict()
-    src = BeautifulSoup(page_data, "html.parser")
 
     stats = src.find_all("div", class_="summaryStatBreakdownDataValue")
     assert len(stats) == 6, FantasyError.something_went_wrong(
@@ -76,21 +71,15 @@ def extract_overview_stats(self, path: str) -> Dict[str, Union[int, float, None]
     return data
 
 
-def extract_individual_stats(self, path: str) -> Dict[str, Union[int, float, None]]:
+def extract_individual_stats(self, path: str, src: Tag = None) -> Dict[str, Union[int, float, None]]:
     """
     Method collects individual stats for a player.
     :param path: absolute path to the overview page
+    :param src: HTML/XML part of parsed tree
     :returns: dictionary of pairs (feature_name, feature_value)
     """
-
-    if not os.path.isfile(path):
-        raise FantasyError.invalid_arguments(f"Not found {path}")
-
-    with open(path, "r", encoding="utf-8") as f:
-        page_data = f.read()
-
+    src = _get_src(path, src)
     data = dict()
-    src = BeautifulSoup(page_data, "html.parser")
 
     rows = src.find_all("div", class_="stats-row")
     if int(rows[0].find_all("span")[1].text) == 0:
@@ -111,21 +100,15 @@ def extract_individual_stats(self, path: str) -> Dict[str, Union[int, float, Non
     return data
 
 
-def extract_clutches_stats(self, path: str) -> Dict[str, Union[int, float, None]]:
+def extract_clutches_stats(self, path: str, src: Tag = None) -> Dict[str, Union[int, float, None]]:
     """
     Method collects clutches stats for a player.
     :param path: absolute path to the overview page
+    :param src: HTML/XML part of parsed tree
     :returns: dictionary of pairs (feature_name, feature_value)
     """
-
-    if not os.path.isfile(path):
-        raise FantasyError.invalid_arguments(f"Not found {path}")
-
-    with open(path, "r", encoding="utf-8") as f:
-        page_data = f.read()
-
+    src = _get_src(path, src)
     data = dict()
-    src = BeautifulSoup(page_data, "html.parser")
 
     summary = src.find("div", class_="summary")
     if summary is None:
@@ -141,20 +124,14 @@ def extract_clutches_stats(self, path: str) -> Dict[str, Union[int, float, None]
     return data
 
 
-def extract_matches_stats(self, path: str) -> List[Tuple[bool, List[float]]]:
+def extract_matches_stats(self, path: str, src: Tag = None) -> List[Tuple[bool, List[float]]]:
     """
     Method collects matches stats for a player.
     :param path: absolute path to the overview page
+    :param src: HTML/XML part of parsed tree
     :returns: list of pairs (match_result, match_ratings)
     """
-
-    if not os.path.isfile(path):
-        raise FantasyError.invalid_arguments(f"Not found {path}")
-
-    with open(path, "r", encoding="utf-8") as f:
-        page_data = f.read()
-
-    src = BeautifulSoup(page_data, "html.parser")
+    src = _get_src(path, src)
 
     table = src.find("table", class_="stats-table")
     if table is None:
