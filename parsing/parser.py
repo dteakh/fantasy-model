@@ -1,25 +1,25 @@
-import os
 import gc
 import json
+import os
 from os.path import join
-import pandas as pd
 from typing import List
 
+import pandas as pd
 from bs4 import BeautifulSoup, Tag
+from parsing.common import (
+    Config,
+    EventFilter,
+    RankingFilter,
+    _read_path,
+    get_features_name,
+    get_page_name,
+    get_ranking_page,
+)
 from parsing.event import Event
 from parsing.player import PlayerStat
 from parsing.team import TeamProfile, TeamStat
-from parsing.common import (
-    Config,
-    get_page_name,
-    get_features_name,
-    get_ranking_page,
-    _read_path
-)
-from parsing.common import EventFilter, RankingFilter
 
-
-RANKING_PATH = join('..', 'data', 'rankings')
+RANKING_PATH = join("..", "data", "rankings")
 
 
 def parse_event_pages(event: Event, cfgs: List[Config], path: str, save="html"):
@@ -108,9 +108,7 @@ def _parse_html(event: Event, cfgs: List[Config], path: str):
     for team in event.teams:
         team_dir = os.path.join(teams_dir, str(team.key))
         os.makedirs(os.path.dirname(team_dir), exist_ok=True)
-        fpath = os.path.join(
-            team_dir, get_page_name(str(TeamStat.MATCHES), cfg)
-        )
+        fpath = os.path.join(team_dir, get_page_name(str(TeamStat.MATCHES), cfg))
         team.get_page(
             TeamStat.MATCHES,
             event=event.key,
@@ -118,7 +116,7 @@ def _parse_html(event: Event, cfgs: List[Config], path: str):
             end=cfg.end_time,
             match=cfg.event_fil,
             rank=cfg.ranking_fil,
-            data_path=fpath
+            data_path=fpath,
         )
 
         for player in team.players:
@@ -156,13 +154,13 @@ def _parse_features(event: Event, cfgs: List[Config], path: str):
     player_pages = {
         "overview": PlayerStat.OVERVIEW,
         "clutches": PlayerStat.CLUTCHES,
-        "individual": PlayerStat.INDIVIDUAL
+        "individual": PlayerStat.INDIVIDUAL,
     }
 
     for cfg in cfgs:
         features_name = get_features_name(cfg)
         # TEAMS
-        for team in event.teams[:1]:
+        for team in event.teams:
             team_dir = os.path.join(teams_dir, str(team.key))
 
             skip_team = False
@@ -177,21 +175,29 @@ def _parse_features(event: Event, cfgs: List[Config], path: str):
                 pages["ranking"] = _read_path(join(RANKING_PATH, ranking))
                 for page_name, page_type in team_pages.items():
                     page = team.get_page(
-                            page_type,
-                            event=event.key,
-                            start=cfg.start_time,
-                            end=cfg.end_time,
-                            match=cfg.event_fil,
-                            rank=cfg.ranking_fil,
-                            return_page=True
-                        )
+                        page_type,
+                        event=event.key,
+                        start=cfg.start_time,
+                        end=cfg.end_time,
+                        match=cfg.event_fil,
+                        rank=cfg.ranking_fil,
+                        return_page=True,
+                    )
                     pages[page_name] = BeautifulSoup(page, "html.parser")
 
                 # collect stats and calc features
                 stats = dict()
-                stats.update(team.extract_ranking(path=None, src=pages["ranking"], team_name=team.name))
+                stats.update(
+                    team.extract_ranking(
+                        path=None, src=pages["ranking"], team_name=team.name
+                    )
+                )
                 stats.update(team.extract_overview(path=None, src=pages["overview"]))
-                stats.update(team.extract_events(path=None, src=pages["events"], match=cfg.event_fil))
+                stats.update(
+                    team.extract_events(
+                        path=None, src=pages["events"], match=cfg.event_fil
+                    )
+                )
                 stats.update(team.extract_lineups(path=None, src=pages["lineups"]))
                 stats.update(team.extract_matches(path=None, src=pages["matches"]))
 
@@ -199,7 +205,9 @@ def _parse_features(event: Event, cfgs: List[Config], path: str):
                 features = team.get_features(prep_stats)
 
                 # save features
-                with open(join(team_dir, features_name), "w", encoding="utf-8") as fhandle:
+                with open(
+                    join(team_dir, features_name), "w", encoding="utf-8"
+                ) as fhandle:
                     json.dump(features.to_dict(), fhandle, indent=4, default=str)
 
             # PLAYERS
@@ -217,18 +225,26 @@ def _parse_features(event: Event, cfgs: List[Config], path: str):
                         end_time=cfg.end_time,
                         event_fil=cfg.event_fil,
                         ranking_fil=cfg.ranking_fil,
-                        return_page=True
+                        return_page=True,
                     )
                     pages[page_name] = BeautifulSoup(page, "html.parser")
 
                 # collect stats and calc features
                 features = dict()
-                features.update(player.extract_overview_stats(path=None, src=pages["overview"]))
-                features.update(player.extract_clutches_stats(path=None, src=pages["clutches"]))
-                features.update(player.extract_individual_stats(path=None, src=pages["individual"]))
+                features.update(
+                    player.extract_overview_stats(path=None, src=pages["overview"])
+                )
+                features.update(
+                    player.extract_clutches_stats(path=None, src=pages["clutches"])
+                )
+                features.update(
+                    player.extract_individual_stats(path=None, src=pages["individual"])
+                )
 
                 # save features
-                with open(join(player_dir, features_name), "w+", encoding="utf-8") as fhandle:
+                with open(
+                    join(player_dir, features_name), "w+", encoding="utf-8"
+                ) as fhandle:
                     json.dump(features, fhandle, indent=4, default=str)
 
     # need target for teams and players
@@ -255,7 +271,7 @@ def _parse_features(event: Event, cfgs: List[Config], path: str):
                 end=cfg.end_time,
                 match=cfg.event_fil,
                 rank=cfg.ranking_fil,
-                return_page=True
+                return_page=True,
             )
             src = BeautifulSoup(page, "html.parser")
             matches = team.get_target(path=None, src=src)
@@ -274,11 +290,13 @@ def _parse_features(event: Event, cfgs: List[Config], path: str):
                 event_key=event.key,
                 start_time=event.starts_at,
                 end_time=event.ends_at,
-                return_page=True
+                return_page=True,
             )
             src = BeautifulSoup(page, "html.parser")
             matches = player.extract_matches_stats(path=None, src=src)
 
             # save target
             with open(join(player_dir, target_name), "w+", encoding="utf-8") as fhandle:
-                json.dump(matches, fhandle, indent=4, default=str)
+                json.dump(
+                    player.calculate_target(matches), fhandle, indent=4, default=str
+                )
