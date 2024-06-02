@@ -25,6 +25,7 @@ class Player:
         return f"{self.name} ({self.key})"
 
     from parsing.player._extractor import (
+        calculate_target,
         extract_clutches_stats,
         extract_individual_stats,
         extract_matches_stats,
