@@ -2,26 +2,18 @@ import os
 import re
 from datetime import datetime
 
-from bs4 import BeautifulSoup
-from parsing.common import FantasyError
+from bs4 import Tag
+from parsing.common import FantasyError, _get_src
 from parsing.team import Team
 
 
-def extract_main_page(self, path: str = None, page_data: str = None):
+def extract_main_page(self, path: str = None, src: Tag = None):
     """
     Method initializes object with main info regarding an event.
     :param path: absolute path to the event page
-    :param page_data: page content instead of path
+    :param src: page content instead of path
     """
-
-    if not page_data:
-        if not os.path.isfile(path):
-            raise FantasyError.invalid_arguments(f"Not found {path}")
-
-        with open(path, "r", encoding="utf-8") as f:
-            page_data = f.read()
-
-    src = BeautifulSoup(page_data, "html.parser")
+    src = _get_src(path, src)
     self.name = src.find("h1", class_="event-hub-title").text
 
     if not src.find("table", class_="table eventMeta"):

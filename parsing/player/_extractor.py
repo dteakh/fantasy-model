@@ -19,7 +19,7 @@ def extract_overview_stats(self, path: str, src: Tag = None) -> Dict[str, Union[
 
     stats = src.find_all("div", class_="summaryStatBreakdownDataValue")
     assert len(stats) == 6, FantasyError.something_went_wrong(
-        f"unexpected length of stats(1) found for {path}"
+        f"unexpected length of stats(len={len(stats)}) found for {path}"
     )
     data["rating"] = float(stats[0].text) if stats[0].text != "0.00" else None
     data["dpr"] = float(stats[1].text) if stats[1].text != "0.00" else None

@@ -1,21 +1,44 @@
 import os
+import gc
+import json
+from os.path import join
+import pandas as pd
 from typing import List
 
+from bs4 import BeautifulSoup, Tag
 from parsing.event import Event
 from parsing.player import PlayerStat
 from parsing.team import TeamProfile, TeamStat
-from parsing.common import Config, get_page_name
+from parsing.common import (
+    Config,
+    get_page_name,
+    get_features_name,
+    get_ranking_page,
+    _read_path
+)
 from parsing.common import EventFilter, RankingFilter
 
 
-def parse_event_pages(event: Event, cfgs: List[Config], path: str):
+RANKING_PATH = join('..', 'data', 'rankings')
+
+
+def parse_event_pages(event: Event, cfgs: List[Config], path: str, save="html"):
     """
     Parses all the data about event including teams and players.
     :param event: event object
     :param cfgs: list of filters to apply when parsing
     :param path: path to directory where event data is saved
+    :param save: either "html" or "features".
+    :return:
     """
+    assert save in ("html", "features")
+    if save == "html":
+        return _parse_html(event, cfgs, path)
+    elif save == "features":
+        return _parse_features(event, cfgs, path)
 
+
+def _parse_html(event: Event, cfgs: List[Config], path: str):
     event_dir = os.path.join(path, str(event.key))
     os.makedirs(os.path.dirname(event_dir), exist_ok=True)
     event.get_page(os.path.join(event_dir, "overview.html"))
@@ -110,3 +133,152 @@ def parse_event_pages(event: Event, cfgs: List[Config], path: str):
                 end_time=event.ends_at,
                 path=fpath,
             )
+
+
+def _parse_features(event: Event, cfgs: List[Config], path: str):
+    event_dir = os.path.join(path, str(event.key))
+    os.makedirs(os.path.dirname(event_dir), exist_ok=True)
+    page = event.get_page(return_page=True)
+    event.extract_main_page(src=BeautifulSoup(page, "html.parser"))
+
+    teams_dir = os.path.join(event_dir, "teams")
+    players_dir = os.path.join(event_dir, "players")
+    os.makedirs(os.path.dirname(teams_dir), exist_ok=True)
+    os.makedirs(os.path.dirname(players_dir), exist_ok=True)
+
+    team_pages = {
+        "overview": TeamStat.OVERVIEW,
+        "matches": TeamStat.MATCHES,
+        "events": TeamStat.EVENT_HISTORY,
+        "lineups": TeamStat.LINEUPS,
+    }
+
+    player_pages = {
+        "overview": PlayerStat.OVERVIEW,
+        "clutches": PlayerStat.CLUTCHES,
+        "individual": PlayerStat.INDIVIDUAL
+    }
+
+    for cfg in cfgs:
+        features_name = get_features_name(cfg)
+        # TEAMS
+        for team in event.teams[:1]:
+            team_dir = os.path.join(teams_dir, str(team.key))
+
+            skip_team = False
+            if os.path.exists(join(team_dir, features_name)):
+                skip_team = True
+
+            if not skip_team:
+                ranking = get_ranking_page(cfg, rankings_path=RANKING_PATH)
+                os.makedirs(team_dir, exist_ok=True)
+                # get needed HTML tags
+                pages = dict()
+                pages["ranking"] = _read_path(join(RANKING_PATH, ranking))
+                for page_name, page_type in team_pages.items():
+                    page = team.get_page(
+                            page_type,
+                            event=event.key,
+                            start=cfg.start_time,
+                            end=cfg.end_time,
+                            match=cfg.event_fil,
+                            rank=cfg.ranking_fil,
+                            return_page=True
+                        )
+                    pages[page_name] = BeautifulSoup(page, "html.parser")
+
+                # collect stats and calc features
+                stats = dict()
+                stats.update(team.extract_ranking(path=None, src=pages["ranking"], team_name=team.name))
+                stats.update(team.extract_overview(path=None, src=pages["overview"]))
+                stats.update(team.extract_events(path=None, src=pages["events"], match=cfg.event_fil))
+                stats.update(team.extract_lineups(path=None, src=pages["lineups"]))
+                stats.update(team.extract_matches(path=None, src=pages["matches"]))
+
+                prep_stats = team.preprocess_stats(stats)
+                features = team.get_features(prep_stats)
+
+                # save features
+                with open(join(team_dir, features_name), "w", encoding="utf-8") as fhandle:
+                    json.dump(features.to_dict(), fhandle, indent=4, default=str)
+
+            # PLAYERS
+            for player in team.players:
+                player_dir = os.path.join(players_dir, str(player.key))
+                os.makedirs(player_dir, exist_ok=True)
+                if os.path.exists(join(player_dir, features_name)):
+                    continue
+
+                pages = dict()
+                for page_name, page_type in player_pages.items():
+                    page = player.get_page(
+                        page_type,
+                        start_time=cfg.start_time,
+                        end_time=cfg.end_time,
+                        event_fil=cfg.event_fil,
+                        ranking_fil=cfg.ranking_fil,
+                        return_page=True
+                    )
+                    pages[page_name] = BeautifulSoup(page, "html.parser")
+
+                # collect stats and calc features
+                features = dict()
+                features.update(player.extract_overview_stats(path=None, src=pages["overview"]))
+                features.update(player.extract_clutches_stats(path=None, src=pages["clutches"]))
+                features.update(player.extract_individual_stats(path=None, src=pages["individual"]))
+
+                # save features
+                with open(join(player_dir, features_name), "w+", encoding="utf-8") as fhandle:
+                    json.dump(features, fhandle, indent=4, default=str)
+
+    # need target for teams and players
+    cfg = Config(
+        start_time=event.starts_at,
+        end_time=event.ends_at,
+        event_fil=EventFilter.ALL,
+        ranking_fil=RankingFilter.ALL,
+    )
+    target_name = "target.json"
+
+    # TEAMS
+    for team in event.teams[:1]:
+        team_dir = os.path.join(teams_dir, str(team.key))
+        skip_team = False
+        if os.path.exists(join(team_dir, target_name)):
+            skip_team = True
+
+        if not skip_team:
+            page = team.get_page(
+                TeamStat.MATCHES,
+                event=event.key,
+                start=cfg.start_time,
+                end=cfg.end_time,
+                match=cfg.event_fil,
+                rank=cfg.ranking_fil,
+                return_page=True
+            )
+            src = BeautifulSoup(page, "html.parser")
+            matches = team.get_target(path=None, src=src)
+
+            # save target
+            with open(join(team_dir, target_name), "w+", encoding="utf-8") as fhandle:
+                json.dump(matches, fhandle, indent=4, default=str)
+
+        for player in team.players:
+            player_dir = os.path.join(players_dir, str(player.key))
+            if os.path.exists(join(player_dir, target_name)):
+                continue
+
+            page = player.get_page(
+                PlayerStat.MATCHES,
+                event_key=event.key,
+                start_time=event.starts_at,
+                end_time=event.ends_at,
+                return_page=True
+            )
+            src = BeautifulSoup(page, "html.parser")
+            matches = player.extract_matches_stats(path=None, src=src)
+
+            # save target
+            with open(join(player_dir, target_name), "w+", encoding="utf-8") as fhandle:
+                json.dump(matches, fhandle, indent=4, default=str)

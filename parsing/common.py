@@ -1,6 +1,7 @@
 import time
 import os
-from datetime import date
+from os.path import join
+from datetime import date, timedelta as td
 
 from enum import Enum
 from dataclasses import dataclass
@@ -103,6 +104,34 @@ def get_page_name(page_type: str, cfg: Config) -> str:
     :returns: page name
     """
     return f"{page_type}_{str(cfg.start_time)}_{str(cfg.end_time)}_{cfg.event_fil.value}_{cfg.ranking_fil.value}.html"
+
+
+def get_features_name(cfg: Config) -> str:
+    """
+    Maps features to object name.
+    :param cfg: filters used to parse the page
+    :returns: features path
+    """
+    return f"{str(cfg.start_time)}_{str(cfg.end_time)}_{cfg.event_fil.value}_{cfg.ranking_fil.value}.json"
+
+
+def get_ranking_page(cfg: Config, rankings_path) -> str:
+    if not os.path.isdir(rankings_path):
+        raise FantasyError.invalid_arguments(f"not such path {rankings_path}")
+
+    rankings = os.listdir(rankings_path)
+
+    end = cfg.end_time
+
+    cnt = 0
+    while f"{end}.html" not in rankings:
+        end -= td(days=1)
+        cnt += 1
+
+        if cnt > 7:
+            raise FantasyError.no_data(f"For given date {end} no close ranking is found.")
+
+    return f"{end}.html"
 
 
 def _read_path(path: str):

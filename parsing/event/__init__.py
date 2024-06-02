@@ -1,5 +1,6 @@
 from typing import List
 from parsing.team import Team
+from bs4 import BeautifulSoup
 
 
 class Event:
@@ -24,7 +25,8 @@ class Event:
         self.teams: List[Team] = []
 
         page_data = self.get_page(return_page=True)
-        self.extract_main_page(page_data=page_data)
+        src = BeautifulSoup(page_data, "html.parser")
+        self.extract_main_page(path=None, src=src)
 
     def features_to_dict(self):
         return {

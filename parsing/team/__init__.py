@@ -1,8 +1,9 @@
 from typing import List
-from parsing.common import Ranking
+from parsing.common import Ranking, _get_src
 from parsing.player import Player
 from parsing.team._constants import TeamProfile, TeamStat
-from parsing.team._preprocessing import _preprocess_lineups
+from parsing.team._preprocessing import _preprocess_lineups, _preprocess_matches
+from bs4 import Tag
 
 
 class Team:
@@ -12,12 +13,18 @@ class Team:
 
         self.players: List[Player] = []
 
-    def init_lineups(self, path: str):
-        lineups = self.extract_lineups(path)["lineups"]
+    def init_lineups(self, path: str, src: Tag = None):
+        lineups = self.extract_lineups(path=path, src=src)["lineups"]
         lineups = _preprocess_lineups(lineups)
         for lineup in lineups:
             if lineup["is_active"]:
                 self.players = lineup["players"]
+                break
+
+    def get_target(self, path: str, src: Tag = None):
+        matches = self.extract_matches(path, src)["matches"]
+        matches = _preprocess_matches(matches)
+        return matches
 
     def __eq__(self, other):
         if isinstance(other, Team):
