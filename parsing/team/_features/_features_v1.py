@@ -12,7 +12,6 @@ def get_features(
 ) -> pd.DataFrame:
     """
     Method calculates team features for preprocessed stats.
-    :param self:
     :param prep_stats: preprocessed stats.
     :param suffix: suffix to append to all features.
     :return: pandas DataFrame with features.

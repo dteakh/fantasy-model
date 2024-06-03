@@ -22,7 +22,7 @@ class Team:
                 break
 
     def get_target(self, path: str, src: Tag = None):
-        matches = self.extract_matches(path, src)["matches"]
+        matches = self.extract_matches(path=path, src=src)["matches"]
         matches = _preprocess_matches(matches)
         return matches
 

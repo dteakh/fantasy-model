@@ -72,19 +72,32 @@ def _preprocess_profile(profile: Dict[str, str]) -> Dict[str, str]:
 
 def _preprocess_overview(overview: Dict[str, str]) -> Dict[str, str]:
     data = dict()
-    data["maps_played"] = np.int32(overview["Maps played"])
+    if overview.get("Maps played", None) is None:
+        data["maps_played"] = None
+        data["wins"] = None
+        data["draws"] = None
+        data["losses"] = None
+        data["kills"] = None
+        data["deaths"] = None
+        data["rounds_played"] = None
+        print("None in 'Maps played' for overview.")
+    else:
+        data["maps_played"] = np.int32(overview["Maps played"])
 
-    matches_results = overview["Wins / draws / losses"].split("/")
-    data["wins"] = np.int32(matches_results[0].strip())
-    data["draws"] = np.int32(matches_results[1].strip())
-    data["losses"] = np.int32(matches_results[2].strip())
+        matches_results = overview["Wins / draws / losses"].split("/")
+        data["wins"] = np.int32(matches_results[0].strip())
+        data["draws"] = np.int32(matches_results[1].strip())
+        data["losses"] = np.int32(matches_results[2].strip())
 
-    data["kills"] = np.int32(overview["Total kills"])
-    data["deaths"] = np.int32(overview["Total deaths"])
-    data["rounds_played"] = np.int32(overview["Rounds played"])
+        data["kills"] = np.int32(overview["Total kills"])
+        data["deaths"] = np.int32(overview["Total deaths"])
+        data["rounds_played"] = np.int32(overview["Rounds played"])
 
-    kd = overview["K/D Ratio"]
-    data["team_kd"] = np.float64(kd) if kd.isdigit() else None
+    if overview.get("K/D Ratio", None) is None:
+        data["team_kd"] = None
+    else:
+        kd = overview["K/D Ratio"]
+        data["team_kd"] = np.float64(kd) if kd.isdigit() else None
 
     return data
 
@@ -165,13 +178,23 @@ def _preprocess_lineups(lineups: List[Dict[str, str]]) -> List[Dict[str, str]]:
         lineup_data["start"] = parse(start) if start != "today" else date.today()
         lineup_data["end"] = parse(end) if end != "today" else date.today()
         lineup_data["is_active"] = end == "today"
-        lineup_data["maps_played"] = np.int32(lineup["Maps played"])
 
-        matches_results = lineup["Wins / draws / losses"].split("/")
-        lineup_data["wins"] = np.int32(matches_results[0].strip())
-        lineup_data["draws"] = np.int32(matches_results[1].strip())
-        lineup_data["losses"] = np.int32(matches_results[2].strip())
-        lineup_data["lan_top3_placings"] = np.int32(lineup["LAN top 3 placings"])
+        if lineup.get("Maps played", None) is None:
+            lineup_data["maps_played"] = None
+            lineup_data["wins"] = None
+            lineup_data["draws"] = None
+            lineup_data["losses"] = None
+            lineup_data["lan_top3_placings"] = None
+            print(f"None in 'Maps played' for lineup [{', '.join(lineup['players'])}].")
+        else:
+            lineup_data["maps_played"] = np.int32(lineup["Maps played"])
+
+            matches_results = lineup["Wins / draws / losses"].split("/")
+            lineup_data["wins"] = np.int32(matches_results[0].strip())
+            lineup_data["draws"] = np.int32(matches_results[1].strip())
+            lineup_data["losses"] = np.int32(matches_results[2].strip())
+            lineup_data["lan_top3_placings"] = np.int32(lineup["LAN top 3 placings"])
+
         lineup_data["players"] = lineup["players"]
 
         data.append(lineup_data)

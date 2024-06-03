@@ -84,6 +84,8 @@ def extract_matches(self, path: str, src: Tag = None) -> Dict[str, List[Dict[str
 
     matches = []
     st = src.find("table", class_="stats-table no-sort")
+    if st is None:
+        return {"matches": matches}
 
     for m in st.find("tbody").find_all("tr"):
         matches.append(

@@ -136,8 +136,10 @@ def _parse_html(event: Event, cfgs: List[Config], path: str):
 def _parse_features(event: Event, cfgs: List[Config], path: str):
     event_dir = os.path.join(path, str(event.key))
     os.makedirs(os.path.dirname(event_dir), exist_ok=True)
-    page = event.get_page(return_page=True)
-    event.extract_main_page(src=BeautifulSoup(page, "html.parser"))
+
+    if not os.path.exists(join(event_dir, "event.json")):
+        with open(join(event_dir, "event.json"), "w+") as fhandle:
+            json.dump(event.features_to_dict(), fhandle, indent=4, default=str)
 
     teams_dir = os.path.join(event_dir, "teams")
     players_dir = os.path.join(event_dir, "players")
@@ -159,6 +161,7 @@ def _parse_features(event: Event, cfgs: List[Config], path: str):
 
     for cfg in cfgs:
         features_name = get_features_name(cfg)
+        print(f"Config {features_name}.")
         # TEAMS
         for team in event.teams:
             team_dir = os.path.join(teams_dir, str(team.key))
@@ -167,16 +170,15 @@ def _parse_features(event: Event, cfgs: List[Config], path: str):
             if os.path.exists(join(team_dir, features_name)):
                 skip_team = True
 
+            ranking = get_ranking_page(cfg, rankings_path=RANKING_PATH)
             if not skip_team:
-                ranking = get_ranking_page(cfg, rankings_path=RANKING_PATH)
                 os.makedirs(team_dir, exist_ok=True)
                 # get needed HTML tags
                 pages = dict()
                 pages["ranking"] = _read_path(join(RANKING_PATH, ranking))
                 for page_name, page_type in team_pages.items():
                     page = team.get_page(
-                        page_type,
-                        event=event.key,
+                        page_type=page_type,
                         start=cfg.start_time,
                         end=cfg.end_time,
                         match=cfg.event_fil,
@@ -209,6 +211,9 @@ def _parse_features(event: Event, cfgs: List[Config], path: str):
                     join(team_dir, features_name), "w", encoding="utf-8"
                 ) as fhandle:
                     json.dump(features.to_dict(), fhandle, indent=4, default=str)
+            elif len(team.players) == 0:
+                src = _read_path(join(RANKING_PATH, ranking))
+                team.init_lineups(path=None, src=src)
 
             # PLAYERS
             for player in team.players:
@@ -257,8 +262,8 @@ def _parse_features(event: Event, cfgs: List[Config], path: str):
     target_name = "target.json"
 
     # TEAMS
-    for team in event.teams[:1]:
-        team_dir = os.path.join(teams_dir, str(team.key))
+    for team in event.teams:
+        team_dir = join(teams_dir, str(team.key))
         skip_team = False
         if os.path.exists(join(team_dir, target_name)):
             skip_team = True

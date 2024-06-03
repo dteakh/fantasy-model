@@ -43,4 +43,7 @@ def extract_main_page(self, path: str = None, src: Tag = None):
     for team_box in src.find_all("div", class_="team-name"):
         for team_link in team_box.find_all("a"):
             team_attrs = team_link.get("href").split("/")
-            self.teams.append(Team(key=team_attrs[2], name=team_attrs[3]))
+
+            team = Team(key=team_attrs[2], name=team_attrs[3])
+            if team not in self.teams:
+                self.teams.append(team)
