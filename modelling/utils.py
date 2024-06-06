@@ -11,6 +11,20 @@ from parsing.team._utils import get_winrate
 from sklearn.base import TransformerMixin
 from sklearn.preprocessing import OneHotEncoder, StandardScaler
 
+from sklearn.metrics import ndcg_score, mean_absolute_error, mean_squared_error
+
+
+def validate(y_true: np.ndarray, y_pred: np.ndarray) -> pd.DataFrame:
+    y_pred *= y_true.max() / y_pred.max()
+
+    metrics = [[
+        mean_squared_error(y_true, y_pred),
+        mean_absolute_error(y_true, y_pred),
+        ndcg_score(y_true.transpose(), y_pred.transpose())
+    ]]
+
+    return pd.DataFrame(data=metrics, columns=['mse', 'mae', 'ndcg'])
+
 
 def _read_json(path: str, df=True, single_row=False, **kwargs) -> pd.DataFrame:
     if df:
