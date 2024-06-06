@@ -35,5 +35,5 @@ def _is_enum_instance(enum_class, variable):
 
 
 def get_winrate(matches: Dict[str, Any]) -> float:
-    won = len([m for m in matches if (m["is_winner"] == 0)])
+    won = len([m for m in matches if (m["is_winner"] == 1)])
     return won / max(1, len(matches))

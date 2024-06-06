@@ -70,7 +70,7 @@ def get_event_dataset(event_dir: str) -> Tuple[pd.DataFrame, pd.DataFrame]:
             matches = json.load(fhandle)
 
         wr = get_winrate(matches)
-        team_df["wr"] = wr
+        team_df["wr_target"] = wr
         team_df["team_id"] = int(team_id)
         team_df["team_name"] = team_id2name[team_id]
 
@@ -100,7 +100,7 @@ def get_event_dataset(event_dir: str) -> Tuple[pd.DataFrame, pd.DataFrame]:
 
         player_df = pd.concat(player_dfs, axis=0, ignore_index=True).reset_index(drop=True)
         try:  # TODO: при последующем парсинге, такой ошибки быть не может. LEGACY.
-            player_df["team_id"] = player2team[player_id]
+            player_df["team_id"] = int(player2team[player_id])
             player_df["player_name"] = player_id2name[player_id]
         except:
             print(f"Player with id={player_id} has no matching team_id.")
@@ -110,7 +110,7 @@ def get_event_dataset(event_dir: str) -> Tuple[pd.DataFrame, pd.DataFrame]:
         with open(join(player_dir, "target.json"), "r") as fhandle:
             expected_pts = fhandle.read()
 
-        player_df["expected_pts"] = expected_pts
+        player_df["expected_pts_target"] = float(expected_pts)
         player_df["player_id"] = int(player_id)
 
         players.append(player_df)
