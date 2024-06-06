@@ -281,6 +281,9 @@ def _parse_features(event: Event, cfgs: List[Config], path: str):
 
     # TEAMS
     for team in event.teams:
+        if len(team.players) == 0:
+            continue
+
         team_dir = join(teams_dir, str(team.key))
         skip_team = False
         if os.path.exists(join(team_dir, target_name)):
