@@ -16,10 +16,18 @@ class Team:
     def init_lineups(self, path: str, src: Tag = None):
         lineups = self.extract_lineups(path=path, src=src)["lineups"]
         lineups = _preprocess_lineups(lineups)
+
+        if len(lineups) == 0:
+            return
+
         for lineup in lineups:
             if lineup["is_active"]:
                 self.players = lineup["players"]
                 break
+
+        if len(self.players) == 0:
+            lineup = sorted(lineups, key=lambda l: l["end"])[-1]
+            self.players = lineup["players"]
 
     def get_target(self, path: str, src: Tag = None):
         matches = self.extract_matches(path=path, src=src)["matches"]

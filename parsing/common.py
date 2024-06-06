@@ -1,7 +1,9 @@
 import time
 import os
+from pathlib import Path
 from os.path import join
-from datetime import date, timedelta as td
+from typing import Dict
+from datetime import date, datetime, timedelta as td
 
 from enum import Enum
 from dataclasses import dataclass
@@ -113,6 +115,18 @@ def get_features_name(cfg: Config) -> str:
     :returns: features path
     """
     return f"{str(cfg.start_time)}_{str(cfg.end_time)}_{cfg.event_fil.value}_{cfg.ranking_fil.value}.json"
+
+
+def unstack_features_name(features_name: str) -> Dict[str, str]:
+    fn = Path(features_name).stem
+    values = fn.split("_")
+
+    cfg = dict()
+    cfg["start_time"] = datetime.strptime(values[0], "%Y-%m-%d").date()
+    cfg["end_time"] = datetime.strptime(values[1], "%Y-%m-%d").date()
+    cfg["event_fil"] = values[2]
+    cfg["ranking_fil"] = values[3]
+    return cfg
 
 
 def get_ranking_page(cfg: Config, rankings_path) -> str:

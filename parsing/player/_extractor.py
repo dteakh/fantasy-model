@@ -170,7 +170,7 @@ def calculate_target(matches: List[Tuple[bool, List[float]]]) -> float:
     expected_pts = 0
     for outcome, ratings in matches:
         expected_rating = sum(ratings) / max(1, len(ratings))
-        if len(matches) > 1:
+        if len(ratings) > 1:
             expected_pts += (100 * (expected_rating - 1)) // 2
         else:
             expected_pts += (100 * (expected_rating - 1)) // 4

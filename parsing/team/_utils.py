@@ -1,7 +1,7 @@
 import re
 
 import numpy as np
-
+from typing import Dict, Any
 from parsing.common import FantasyError
 
 
@@ -32,3 +32,8 @@ def _is_enum_instance(enum_class, variable):
     except ValueError:
         return False
     return True
+
+
+def get_winrate(matches: Dict[str, Any]) -> float:
+    won = len([m for m in matches if (m["is_winner"] == 0)])
+    return won / max(1, len(matches))
