@@ -2,7 +2,7 @@ from datetime import date
 from datetime import timedelta as td
 
 from parsing.common import BASE, EventFilter, RankingFilter
-from parsing.player._constants import PlayerStat
+from parsing.player import PlayerStat
 
 
 def get_stat_link(
@@ -13,7 +13,17 @@ def get_stat_link(
     end_time: date = date.today(),
     event_fil: EventFilter = EventFilter.ALL,
     ranking_fil: RankingFilter = RankingFilter.ALL,
-):
+) -> str:
+    """
+    Method constructs url-link of a player based on passed arguments.
+    :param stat: type of statistics.
+    :param event_key: key of the event.
+    :param start_time: start of time period.
+    :param end_time: end of time period
+    :param event_fil: filter events type.
+    :param ranking_fil: filter opponents.
+    """
+
     start_time = start_time.strftime("%Y-%m-%d")
     end_time = end_time.strftime("%Y-%m-%d")
     if stat == PlayerStat.CLUTCHES:

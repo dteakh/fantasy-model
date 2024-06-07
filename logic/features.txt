@@ -1,14 +1,17 @@
 features
 
 	team features:
-		if any roster changes last x days (https://www.hltv.org/team/4411/ninjas-in-pyjamas#tab-rosterBox) +
-		world ranking +
-		(?) world ranking change
-		weeks in top30 for core +
-		avg events placement last x days +
-		avg team rating without igl +-
-		%winrate last x days +
-		current winstreak during last x days +
+	    last x days:
+		    if any roster changes (https://www.hltv.org/team/4411/ninjas-in-pyjamas#tab-rosterBox) +
+		    world ranking +
+		    (?) world ranking change
+		    weeks in top30 for core +
+		    avg events placement +
+		    avg team rating without igl +-
+		    winrate +
+		    game intensity (average of rounds_won / rounds_lost for wins/losses)
+		    current winstreak+
+		    total_matches_played
 
 	individual features:
 		filtered:
